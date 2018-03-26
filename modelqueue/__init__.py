@@ -1,10 +1,24 @@
 "ModelQueue: task queue based on Django models."
 
 class StatusField:
-    pass  # TODO
+    """Model queue status field.
+
+    TODO
+
+    """
+    # pylint: disable=too-few-public-methods
+    pass
+
 
 def run(queryset, field_name, func):
-    pass  # TODO
+    """Queue runner.
+
+    TODO
+
+    """
+    # pylint: disable=unused-argument
+    pass
+
 
 __all__ = [
     'StatusField',
