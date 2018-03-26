@@ -11,6 +11,7 @@
 /.tox/
 /build/
 /dist/
+/.pytest_cache/
 /modelqueue.egg-info/
 
 .DS_Store
