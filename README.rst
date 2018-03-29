@@ -18,8 +18,13 @@ Here's what it looks like:
 
     class Report(models.Model):
         upload = models.FileField()
-        status = modelqueue.StatusField()
+        status = modelqueue.StatusField(
         # ^-- Add status field.
+            db_index=True,
+            # ^-- Add index for faster queries.
+            default=modelqueue.waiting,
+            # ^-- Set default state to WAITING.
+        )
 
     # yourapp/management/commands/process_report_uploads.py
 
@@ -38,7 +43,7 @@ Here's what it looks like:
                     self.process,
                     # ^-- Callable to process model.
                 )
-                time.sleep(1)
+                time.sleep(0.001)
                 # ^-- Bring your own parallelism/concurrency.
 
         def process(self, report):
@@ -50,6 +55,17 @@ won't be today!
 
 Testimonials
 ------------
+
+"I didn't design relational database systems for this." ~ `Edgar F. Codd`_
+
+"Well at least you're using transactions." ~ `Jim Gray`_
+
+"You have successfully ignored most of what's important in queueing theory." ~
+`Agner Krarup Erlang`_
+
+.. _`Edgar F. Codd`: https://en.wikipedia.org/wiki/Edgar_F._Codd
+.. _`Jim Gray`: https://en.wikipedia.org/wiki/Jim_Gray_(computer_scientist)
+.. _`Agner Krarup Erlang`: https://en.wikipedia.org/wiki/Agner_Krarup_Erlang
 
 Does your company or website use `ModelQueue`_? Send us a `message
 <contact@grantjenks.com>`_ and let us know.
