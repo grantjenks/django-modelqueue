@@ -212,8 +212,8 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
 
 
 __title__ = 'modelqueue'
-__version__ = '0.0.2'
-__build__ = 0x000002
+__version__ = '0.0.3'
+__build__ = 0x000003
 __author__ = 'Grant Jenks'
 __license__ = 'Apache 2.0'
 __copyright__ = 'Copyright 2018 Grant Jenks'
