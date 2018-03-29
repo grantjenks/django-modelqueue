@@ -6,6 +6,6 @@ python:
   - "3.6"
   - "pypy"
 install:
-  - pip install -r requirements.txt
+  - python -m pip install -r requirements.txt
 script:
-  - pytest tests
+  - python -m tox -e py

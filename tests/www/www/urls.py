@@ -1,0 +1,5 @@
+"""www URL Configuration
+
+"""
+
+urlpatterns = []
