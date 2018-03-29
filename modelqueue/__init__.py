@@ -62,10 +62,12 @@ StatusField = models.BigIntegerField
 
 
 def now():
+    "Return now datetime in UTC timezone."
     return dt.datetime.now(pytz.utc)
 
 
 def parse(status):
+    "Parse integer status into state, moment, and attempts fields."
     status = str(status)
     assert len(status) == 19
     state = int(status[:1])
@@ -84,6 +86,7 @@ def parse(status):
 
 
 def combine(state, moment, attempts):
+    "Combine state, moment, and attempts fields into integer status."
     template = (
         '{state}'
         '{year:04d}'
@@ -111,32 +114,57 @@ def combine(state, moment, attempts):
 
 
 def created(moment=None, attempts=0):
+    """Return created status with given moment and attempts.
+
+    When moment is None (the default), use now in UTC timezone.
+
+    """
     moment = now() if moment is None else moment
     return combine(CREATED, now, attempts)
 
 
 def waiting(moment=None, attempts=0):
+    """Return waiting status with given moment and attempts.
+
+    When moment is None (the default), use now in UTC timezone.
+
+    """
     moment = now() if moment is None else moment
     return combine(WAITING, moment, attempts)
 
 
 def working(moment=None, attempts=0):
+    """Return working status with given moment and attempts.
+
+    When moment is None (the default), use now in UTC timezone.
+
+    """
     moment = now() if moment is None else moment
     return combine(WORKING, moment, attempts)
 
 
 def finished(moment=None, attempts=0):
+    """Return finished status with given moment and attempts.
+
+    When moment is None (the default), use now in UTC timezone.
+
+    """
     moment = now() if moment is None else moment
     return combine(FINISHED, moment, attempts)
 
 
 def canceled(moment=None, attempts=0):
+    """Return canceled status with given moment and attempts.
+
+    When moment is None (the default), use now in UTC timezone.
+
+    """
     moment = now() if moment is None else moment
     return combine(CANCELED, moment, attempts)
 
 
 def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
-    """Run `action` on objects from `queryset` in queue defined by `field`.
+    r"""Run `action` on objects from `queryset` in queue defined by `field`.
 
     States:
 
