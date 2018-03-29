@@ -76,24 +76,24 @@ Features
 - Pure-Python
 - Developed on Python 3.6
 - Tested on Django 1.11
+- Tested on CPython 2.7, 3.4, 3.5, 3.6, PyPy and PyPy3
+- Tested on Linux, Mac OS X, and Windows
+- Tested using Travis CI and AppVeyor CI
+
+.. image:: https://api.travis-ci.org/grantjenks/django-modelqueue.svg?branch=master
+    :target: http://www.grantjenks.com/docs/modelqueue/
+
+.. image:: https://ci.appveyor.com/api/projects/status/github/grantjenks/django-modelqueue?branch=master&svg=true
+    :target: http://www.grantjenks.com/docs/modelqueue/
 
 .. todo::
 
-   - Fully Documented
+   - Fully documented
+   - Performance matters
    - Benchmark comparisons
    - 100% test coverage
    - Hours of stress testing
-   - Performance matters
    - Tested on Django 2.0
-   - Tested on CPython 2.7, 3.4, 3.5, 3.6 and PyPy
-   - Tested on Linux, Mac OS X, and Windows
-   - Tested using Travis CI and AppVeyor CI
-
-   .. image:: https://api.travis-ci.org/grantjenks/django-modelqueue.svg?branch=master
-       :target: http://www.grantjenks.com/docs/modelqueue/
-
-   .. image:: https://ci.appveyor.com/api/projects/status/github/grantjenks/django-modelqueue?branch=master&svg=true
-       :target: http://www.grantjenks.com/docs/modelqueue/
 
 Quickstart
 ----------
