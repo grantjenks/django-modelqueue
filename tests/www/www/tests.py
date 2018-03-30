@@ -1,11 +1,17 @@
+import collections as co
 import datetime as dt
+import itertools
+import random
+import threading
+
 import modelqueue as mq
 import pytest
+
 from .models import Task
 
 
 def nop(obj):
-    pass
+    assert mq.MIN_WORKING <= obj.status <= mq.MAX_WORKING
 
 
 @pytest.mark.django_db
@@ -57,21 +63,18 @@ def test_run_created():
     assert mq.run(tasks, 'status', nop) is None
 
 
-def check_working(obj):
-    assert mq.MIN_WORKING <= obj.status <= mq.MAX_WORKING
-
-
 @pytest.mark.django_db
 def test_run_working():
     task1 = Task(data=str(0))
     task1.save()
-    task2 = mq.run(Task.objects.all(), 'status', check_working)
+    task2 = mq.run(Task.objects.all(), 'status', nop)
     assert task1 == task2
     state, _, _ = mq.parse(task2.status)
     assert state == mq.FINISHED
 
 
 def always_fails(obj):
+    assert mq.MIN_WORKING <= obj.status <= mq.MAX_WORKING
     raise RuntimeError
 
 
@@ -107,6 +110,7 @@ def test_run_canceled():
 
 
 def control_c(obj):
+    assert mq.MIN_WORKING <= obj.status <= mq.MAX_WORKING
     raise KeyboardInterrupt
 
 
@@ -121,24 +125,6 @@ def test_run_canceled_no_retry():
         pass
     else:
         assert False, 'keyboard interrupt expected'
-
-    task.refresh_from_db()
-    state, _, attempts = mq.parse(task.status)
-    assert state == mq.CANCELED
-    assert attempts == 1
-
-
-@pytest.mark.django_db
-def test_run_keyboardinterrupt():
-    task = Task(data=str(0))
-    task.save()
-
-    try:
-        mq.run(Task.objects.all(), 'status', always_fails, retry=0)
-    except RuntimeError:
-        pass
-    else:
-        assert False, 'runtime error expected'
 
     task.refresh_from_db()
     state, _, attempts = mq.parse(task.status)
@@ -165,14 +151,95 @@ def test_run_timeout():
 
 @pytest.mark.django_db
 def test_run_future():
-    pass  # TODO, schedule in the future
+    future = mq.now() + mq.ONE_HOUR
+    task = Task(data=str(0), status=mq.waiting(future))
+    task.save()
+    assert mq.run(Task.objects.all(), 'status', nop) is None
 
 
 @pytest.mark.django_db
-def test_run_delay():
-    pass  # TODO, set delay to ten minutes
+def test_run_timeout_delay():
+    past = mq.now() - mq.ONE_HOUR
+    task = Task(data=str(0), status=mq.working(past))
+    task.save()
+    assert mq.run(Task.objects.all(), 'status', nop, delay=mq.ONE_HOUR) is None
+    task.refresh_from_db()
+    state, _, attempts = mq.parse(task.status)
+    assert state == mq.WAITING
+    assert attempts == 1
+    assert mq.run(Task.objects.all(), 'status', nop) is None
 
 
 @pytest.mark.django_db
-def test_run_stress():
-    pass  # TODO, fail randomly
+def test_run_error_delay():
+    task = Task(data=str(0))
+    task.save()
+    tasks = Task.objects.all()
+    try:
+        mq.run(tasks, 'status', always_fails, delay=mq.ONE_HOUR)
+    except RuntimeError:
+        pass
+    else:
+        assert False, 'runtime error expected'
+    task.refresh_from_db()
+    state, _, attempts = mq.parse(task.status)
+    assert state == mq.WAITING
+    assert attempts == 1
+    assert mq.run(Task.objects.all(), 'status', always_fails) is None
+
+
+def maybe(obj):
+    assert mq.MIN_WORKING <= obj.status <= mq.MAX_WORKING
+    choice = random.randrange(3)
+
+    if choice == 0:
+        return
+    elif choice == 1:
+        raise RuntimeError
+    else:
+        assert choice == 2
+        # Simulate dying in the middle of a run. ModelQueue does not handle
+        # SystemExit events. The result is some tasks will be left in the
+        # working state.
+        raise SystemExit
+
+
+@pytest.mark.django_db
+def test_run_maybe():
+    tasks = Task.objects.all()
+    counter = itertools.count()
+
+    for num in range(10000):
+        if not random.randrange(3):
+            if random.randrange(100):
+                task = Task(data=str(next(counter)))
+            else:
+                task = Task(data=str(next(counter)), status=mq.created())
+            task.save()
+        else:
+            try:
+                one_millis = dt.timedelta(microseconds=1000)
+                ten_millis = one_millis * 10
+                mq.run(
+                    tasks,
+                    'status',
+                    maybe,
+                    timeout=ten_millis,
+                    delay=one_millis,
+                )
+            except BaseException:
+                pass
+
+    states = co.Counter()
+    attemptses = co.Counter()
+
+    for task in tasks:
+        state, _, attempts = mq.parse(task.status)
+        states[state] += 1
+        attemptses[attempts] += 1
+
+    print('States:', sorted(states.most_common()))
+    print('Attempts:', sorted(attemptses.most_common()))
+
+    assert all(state in states for state in (1, 2, 4, 5))
+    assert all(attempts in attemptses for attempts in range(5))
