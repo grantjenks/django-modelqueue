@@ -75,6 +75,7 @@ Features
 
 - Pure-Python
 - 100% test coverage
+- Hours of stress testing
 - Developed on Python 3.6
 - Tested on Django 1.11
 - Tested on CPython 2.7, 3.4, 3.5, 3.6, PyPy and PyPy3
@@ -92,7 +93,6 @@ Features
    - Fully documented
    - Performance matters
    - Benchmark comparisons
-   - Hours of stress testing
    - Tested on Django 2.0
 
 Quickstart

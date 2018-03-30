@@ -2,6 +2,7 @@ import collections as co
 import datetime as dt
 import itertools
 import random
+import time
 
 import modelqueue as mq
 import pytest
@@ -20,6 +21,7 @@ def test_run_waiting_finished():
     for num in range(count):
         task = Task(data=str(num))
         task.save()
+        time.sleep(0.001)
 
     waiting = Task.objects.filter(
         status__gte=mq.MIN_WAITING,
@@ -203,12 +205,10 @@ def maybe(obj):
         raise SystemExit
 
 
-@pytest.mark.django_db
-def test_run_maybe():
+def worker(counter):
     tasks = Task.objects.all()
-    counter = itertools.count()
 
-    for num in range(10000):
+    for num in range(1000):
         if not random.randrange(3):
             if random.randrange(100):
                 task = Task(data=str(next(counter)))
@@ -229,6 +229,25 @@ def test_run_maybe():
             except BaseException:
                 pass
 
+    from django.db import connection
+    connection.close()
+
+
+@pytest.mark.django_db
+def test_run_maybe():
+    tasks = Task.objects.all()
+    counter = itertools.count()
+    worker(counter)
+
+    # import threading
+    # threads = []
+    # for num in range(8):
+    #     thread = threading.Thread(target=worker, args=(counter,))
+    #     thread.start()
+    #     threads.append(thread)
+    # for thread in threads:
+    #     thread.join()
+
     states = co.Counter()
     attemptses = co.Counter()
 
@@ -237,6 +256,7 @@ def test_run_maybe():
         states[state] += 1
         attemptses[attempts] += 1
 
+    print('')
     print('States:', sorted(states.most_common()))
     print('Attempts:', sorted(attemptses.most_common()))
 
