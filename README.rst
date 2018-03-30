@@ -74,6 +74,7 @@ Features
 --------
 
 - Pure-Python
+- Performance matters
 - 100% test coverage
 - Hours of stress testing
 - Developed on Python 3.6
@@ -91,7 +92,6 @@ Features
 .. todo::
 
    - Fully documented
-   - Performance matters
    - Benchmark comparisons
    - Tested on Django 2.0
 
