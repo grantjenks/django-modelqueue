@@ -50,10 +50,15 @@ FINISHED = 4
 CANCELED = 5
 
 MIN_CREATED = int(CREATED * 1e18)
+MAX_CREATED = int((CREATED + 1) * 1e18) - 1
 MIN_WAITING = int(WAITING * 1e18)
+MAX_WAITING = int((WAITING + 1) * 1e18) - 1
 MIN_WORKING = int(WORKING * 1e18)
+MAX_WORKING = int((WORKING + 1) * 1e18) - 1
 MIN_FINISHED = int(FINISHED * 1e18)
+MAX_FINISHED = int((FINISHED + 1) * 1e18) - 1
 MIN_CANCELED = int(CANCELED * 1e18)
+MAX_CANCELED = int((CANCELED + 1) * 1e18) - 1
 
 ONE_HOUR = dt.timedelta(hours=1)
 ZERO_SECS = dt.timedelta(seconds=0)
@@ -68,7 +73,7 @@ def now():
 
 def parse(status):
     "Parse integer status into state, moment, and attempts fields."
-    status = str(status)
+    status = '{0:019d}'.format(status)
     assert len(status) == 19
     state = int(status[:1])
     moment = dt.datetime(
@@ -120,7 +125,7 @@ def created(moment=None, attempts=0):
 
     """
     moment = now() if moment is None else moment
-    return combine(CREATED, now, attempts)
+    return combine(CREATED, moment, attempts)
 
 
 def waiting(moment=None, attempts=0):
