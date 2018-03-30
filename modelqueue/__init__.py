@@ -59,6 +59,7 @@ MIN_FINISHED = int(FINISHED * 1e18)
 MAX_FINISHED = int((FINISHED + 1) * 1e18) - 1
 MIN_CANCELED = int(CANCELED * 1e18)
 MAX_CANCELED = int((CANCELED + 1) * 1e18) - 1
+MAX_ATTEMPTS = 9
 
 ONE_HOUR = dt.timedelta(hours=1)
 ZERO_SECS = dt.timedelta(seconds=0)
@@ -189,10 +190,11 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
                        day       millisecond
 
     """
+    assert retry <= 8
     with transaction.atomic():
         kwargs = {field + '__gte': MIN_WORKING}
         working_query = queryset.all().filter(**kwargs)
-        kwargs = {field + '__lte': working(now() - timeout)}
+        kwargs = {field + '__lte': working(now() - timeout, MAX_ATTEMPTS)}
         working_query = working_query.filter(**kwargs)
         working_query = working_query.order_by(field)
         working_query = working_query.select_for_update()
@@ -209,7 +211,7 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
 
         kwargs = {field + '__gte': MIN_WAITING}
         waiting_query = queryset.all().filter(**kwargs)
-        kwargs = {field + '__lte': waiting(now())}
+        kwargs = {field + '__lte': waiting(now(), MAX_ATTEMPTS)}
         waiting_query = waiting_query.filter(**kwargs)
         waiting_query = waiting_query.order_by(field)
         waiting_query = waiting_query.select_for_update()

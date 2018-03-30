@@ -7,3 +7,9 @@ class Task(models.Model):
         db_index=True,
         default=modelqueue.waiting,
     )
+
+    def __str__(self):
+        return 'Task(data={!r}, status={!r}'.format(
+            self.data,
+            self.status,
+        )
