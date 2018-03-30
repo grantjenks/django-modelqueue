@@ -2,7 +2,6 @@ import collections as co
 import datetime as dt
 import itertools
 import random
-import threading
 
 import modelqueue as mq
 import pytest
