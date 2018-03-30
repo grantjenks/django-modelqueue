@@ -208,7 +208,7 @@ def maybe(obj):
 def worker(counter):
     tasks = Task.objects.all()
 
-    for num in range(1000):
+    for num in range(10000):
         if not random.randrange(3):
             if random.randrange(100):
                 task = Task(data=str(next(counter)))
