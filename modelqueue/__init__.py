@@ -40,6 +40,7 @@ Results
 import datetime as dt
 import pytz
 
+from django.contrib import admin
 from django.db import models
 from django.db import transaction
 
@@ -48,17 +49,19 @@ WAITING = 2
 WORKING = 3
 FINISHED = 4
 CANCELED = 5
+STATES = CREATED, WAITING, WORKING, FINISHED, CANCELED
+STATE_OFFSET = 1000000000000000000
 
-MIN_CREATED = int(CREATED * 1e18)
-MAX_CREATED = int((CREATED + 1) * 1e18) - 1
-MIN_WAITING = int(WAITING * 1e18)
-MAX_WAITING = int((WAITING + 1) * 1e18) - 1
-MIN_WORKING = int(WORKING * 1e18)
-MAX_WORKING = int((WORKING + 1) * 1e18) - 1
-MIN_FINISHED = int(FINISHED * 1e18)
-MAX_FINISHED = int((FINISHED + 1) * 1e18) - 1
-MIN_CANCELED = int(CANCELED * 1e18)
-MAX_CANCELED = int((CANCELED + 1) * 1e18) - 1
+MIN_CREATED = CREATED * STATE_OFFSET
+MAX_CREATED = ((CREATED + 1) * STATE_OFFSET) - 1
+MIN_WAITING = WAITING * STATE_OFFSET
+MAX_WAITING = ((WAITING + 1) * STATE_OFFSET) - 1
+MIN_WORKING = WORKING * STATE_OFFSET
+MAX_WORKING = ((WORKING + 1) * STATE_OFFSET) - 1
+MIN_FINISHED = FINISHED * STATE_OFFSET
+MAX_FINISHED = ((FINISHED + 1) * STATE_OFFSET) - 1
+MIN_CANCELED = CANCELED * STATE_OFFSET
+MAX_CANCELED = ((CANCELED + 1) * STATE_OFFSET) - 1
 MAX_ATTEMPTS = 9
 
 ONE_HOUR = dt.timedelta(hours=1)
@@ -244,6 +247,53 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
             worker.save()
 
     return worker
+
+
+def filter(field):
+    class QueueFilter(admin.SimpleListFilter):
+        title = '%s queue status' % field
+        parameter_name = '%s_queue' % field
+
+
+        def lookups(self, request, model_admin):
+            return (
+                (CREATED, 'Created'),
+                (WAITING, 'Waiting'),
+                (WORKING, 'Working'),
+                (FINISHED, 'Finished'),
+                (CANCELED, 'Canceled'),
+            )
+
+
+        def queryset(self, request, queryset):
+            value = self.value()
+
+            if value is None:
+                return queryset
+
+            value = int(value)
+            kwargs = {
+                field + '__gte': value * STATE_OFFSET,
+                field + '__lte': ((value + 1) * STATE_OFFSET) - 1,
+            }
+            return queryset.filter(**kwargs)
+
+    return QueueFilter
+
+
+def status(queryset, field):
+    # TODO: Rename to count_states(queryset, field)
+    counts = []
+
+    for value in STATES:
+        kwargs = {
+            field + '__gte': value * STATE_OFFSET,
+            field + '__lte': ((value + 1) * STATE_OFFSET) - 1,
+        }
+        count = queryset.filter(**kwargs).count()
+        counts.append(count)
+
+    return tuple(counts)
 
 
 __title__ = 'modelqueue'
