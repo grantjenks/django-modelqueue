@@ -1,7 +1,7 @@
 ModelQueue: Task Queue Based on Django Models
 =============================================
 
-`ModelQueue`_ is an Apache2 licenced task queue based on Django models.
+`ModelQueue`_ is an Apache2 licensed task queue based on Django models.
 
 .. warning::
 
