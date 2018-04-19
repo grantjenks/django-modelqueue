@@ -17,7 +17,7 @@ def test_parse_combine():
                             for second in (0, 7, 14, 59):
                                 for microsecond in (0, 123456, 456789, 99999):
                                     for attempts1 in (0, 5, 9):
-                                        moment1 = dt.datetime(
+                                        priority1 = dt.datetime(
                                             year,
                                             month,
                                             day,
@@ -27,27 +27,23 @@ def test_parse_combine():
                                             microsecond,
                                             tzinfo=pytz.utc,
                                         )
-                                        args = state1, moment1, attempts1
-                                        status = mq.combine(*args)
-                                        result = mq.parse(status)
-                                        state2, moment2, attempts2 = result
+                                        args = state1, priority1, attempts1
+                                        status = mq.Status.combine(*args)
+                                        result = status.parse()
+                                        state2, priority2, attempts2 = result
                                         assert state1 == state2
                                         millisecond = int(microsecond / 1000.0)
-                                        moment1 = moment1.replace(
+                                        priority1 = priority1.replace(
                                             microsecond=millisecond * 1000,
                                         )
-                                        assert moment1 == moment2
+                                        assert priority1 == priority2
                                         assert attempts1 == attempts2
 
 
 def test_states():
-    moment = dt.datetime(2018, 1, 2, 3, 4, 5, 678901)
-    pairs = [
-        (mq.CREATED, mq.created),
-        (mq.WAITING, mq.waiting),
-        (mq.WORKING, mq.working),
-        (mq.FINISHED, mq.finished),
-        (mq.CANCELED, mq.canceled),
-    ]
-    for state, func in pairs:
-        assert func(moment, 9) == mq.combine(state, moment, 9)
+    priority = dt.datetime(2018, 1, 2, 3, 4, 56, 789123)
+    assert mq.Status.created(priority, 1) == 1201801020304567891
+    assert mq.Status.waiting(priority, 2) == 2201801020304567892
+    assert mq.Status.working(priority, 3) == 3201801020304567893
+    assert mq.Status.finished(priority, 4) == 4201801020304567894
+    assert mq.Status.canceled(priority, 5) == 5201801020304567895
