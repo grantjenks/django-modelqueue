@@ -3,10 +3,6 @@ ModelQueue: Task Queue Based on Django Models
 
 `ModelQueue`_ is an Apache2 licensed task queue based on Django models.
 
-.. warning::
-
-   What you see here is a work-in-progress!
-
 Here's what it looks like:
 
 ::
@@ -22,7 +18,7 @@ Here's what it looks like:
         # ^-- Add status field.
             db_index=True,
             # ^-- Add index for faster queries.
-            default=modelqueue.waiting,
+            default=modelqueue.Status.waiting,
             # ^-- Set default state to WAITING.
         )
 
@@ -74,6 +70,7 @@ Features
 --------
 
 - Pure-Python
+- Fully documented
 - Performance matters
 - 100% test coverage
 - Hours of stress testing
@@ -89,12 +86,6 @@ Features
 .. image:: https://ci.appveyor.com/api/projects/status/github/grantjenks/django-modelqueue?branch=master&svg=true
     :target: http://www.grantjenks.com/docs/modelqueue/
 
-.. todo::
-
-   - Fully documented
-   - Benchmark comparisons
-   - Tested on Django 2.0
-
 Quickstart
 ----------
 
@@ -108,8 +99,6 @@ function::
 
   >>> import modelqueue
   >>> help(modelqueue)
-  >>> help(modelqueue.StatusField)
-  >>> help(modelqueue.run)
 
 User Guide
 ----------
@@ -117,17 +106,9 @@ User Guide
 For those wanting more details, this part of the documentation describes
 introduction, benchmarks, development, and API.
 
-.. todo::
+* `ModelQueue API Reference`_
 
-   * `ModelQueue Tutorial`_
-   * `ModelQueue Benchmarks`_
-   * `ModelQueue API Reference`_
-   * `ModelQueue Development`_
-
-.. _`ModelQueue Tutorial`: http://www.grantjenks.com/docs/modelqueue/tutorial.html
-.. _`ModelQueue Benchmarks`: http://www.grantjenks.com/docs/modelqueue/benchmarks.html
 .. _`ModelQueue API Reference`: http://www.grantjenks.com/docs/modelqueue/api.html
-.. _`ModelQueue Development`: http://www.grantjenks.com/docs/modelqueue/development.html
 
 Reference and Indices
 ---------------------

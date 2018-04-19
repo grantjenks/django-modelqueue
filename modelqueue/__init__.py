@@ -1,38 +1,7 @@
 """ModelQueue: Task Queue Based on Django Models
 ================================================
 
-Benchmarking
-------------
-
-Setup
-.....
-
-from www.models import Task
-from modelqueue import run
-from itertools import count
-counter = count()
-def noop(value):
-    pass
-%timeit Task(data=str(next(counter))).save()
-%timeit run(Task.objects.all(), 'status', noop)
-
-Results
-.......
-
-* SQLite; no pragmas
-  * Save task: 865us
-  * Run task: 3.44ms
-
-* SQLite; journal_mode = wal; synchronous = 1
-  * Save task: 238us
-  * Run task: 1.86ms
-
-* SQLite; synchronous = 0
-  * Save task: 588us
-  * Run task: 2.71ms
-
-* Redis
-  * Run task: 11.6us
+ModelQueue is an Apache2 licensed task queue based on Django models.
 
 """
 
@@ -64,6 +33,8 @@ class State(int):
     created
     >>> repr(state)
     "State(1, 'created')"
+    >>> State.created
+    State(1, 'created')
 
     """
     def __new__(cls, value, name):
@@ -84,7 +55,7 @@ class State(int):
 class Status(int):
     """Model Queue Status
 
-    64-bit Signed Integer Field Format:
+    64-bit Signed Integer Field Format::
 
         state        priority          attempt
           |   |----------------------|   |
@@ -99,6 +70,8 @@ class Status(int):
     >>> assert status.state == State.created
     >>> assert status.priority == 20180102030456789
     >>> assert status.attempts == 0
+    >>> Status.canceled(123, 5)
+    Status(5000000000000001235)
 
     """
     _state_offset = 1000000000000000000
@@ -130,7 +103,15 @@ class Status(int):
 
     @classmethod
     def filter(cls, field, state):
-        """Filter `field` by `state`.
+        """Return keyword arguments to filter `field` by `state` for querysets.
+
+        For example::
+
+            Task.objects.filter(**Status.filter('fieldname', State.working))
+
+        :param str field: field name
+        :param State state: model queue state
+        :returns: keyword arguments
 
         >>> kwargs = Status.filter('status', State.waiting)
         >>> assert len(kwargs) == 2
@@ -159,6 +140,9 @@ class Status(int):
         >>> Status.minimum('working')
         3000000000000000000
 
+        :param state: status state
+        :returns: minimum status value with given state
+
         """
         if isinstance(state, str):
             state = getattr(State, state)
@@ -174,6 +158,9 @@ class Status(int):
         >>> Status.maximum('working')
         3999999999999999999
 
+        :param state: status state
+        :returns: maximum status value with given state
+
         """
         if isinstance(state, str):
             state = getattr(State, state)
@@ -183,6 +170,14 @@ class Status(int):
     @classmethod
     def tally(cls, queryset, field):
         """Return mapping of state to count from `field` in `queryset`.
+
+        For example::
+
+            Status.tally(Task.objects.all(), 'status')
+
+        :param queryset: Django queryset
+        :param str field: field name
+        :returns: mapping of state names to counts
 
         """
         result = {}
@@ -241,7 +236,7 @@ class Status(int):
         """Parse status into state, priority, and attempts fields.
 
         If `datetime` is True (the default), then parse priority into datetime
-        object. Priority has format:
+        object. Priority has format::
 
                    priority         
             |----------------------|
@@ -251,6 +246,9 @@ class Status(int):
             year |   |  minute |  |
                month |     second |
                     day       millisecond
+
+        :param bool datetime: parse priority as datetime (default True)
+        :returns: tuple of state, priority, and attempts
 
         >>> status = Status(1201801020304567895)
         >>> state, priority, attempts = status.parse()
@@ -290,7 +288,11 @@ def _make_status_method(state):
     def status(cls, priority=None, attempts=0):
         """Return new {name} status with given priority and attempts.
 
-        When `priority` is None (the default), use ``now()``.
+        When `priority` is None (the default), uses `now()`.
+
+        :param priority: integer or datetime, lower is higher priority
+        :param int attempts: number of previous attempts (0 through 9)
+        :returns: status
 
         """
         priority = now() if priority is None else priority
@@ -307,6 +309,39 @@ for _state in Status.states:
 
 def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
     """Run `action` on results from `queryset` in queue defined by `field`.
+
+    For example::
+
+        import modelqueue, time
+        from django.core.management.base import BaseCommand
+        from .models import Task
+
+        class Command(BaseCommand):
+
+            def handle(self, *args, **options):
+                while True:
+                    task = modelqueue.run(
+                        Task.objects.all(),
+                        # ^-- Queryset of models to process.
+                        'status',
+                        # ^-- Field name for model queue.
+                        self.process,
+                        # ^-- Callable to process model.
+                    )
+                    if task is None:
+                        time.sleep(0.001)
+                        # ^-- Bring your own parallelism/concurrency.
+
+            def process(self, report):
+                pass  # Process task models.
+
+    :param queryset: Django queryset
+    :param str field: field name
+    :param function action: applied to models from `queryset`
+    :param int retry: max retry count (limit 8)
+    :param timedelta timeout: max runtime for `action`
+    :param timedelta delay: delay time after retry
+    :return: model from queryset or None if no waiting model
 
     """
     assert 0 <= retry <= 8
@@ -367,6 +402,19 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
 
 
 def admin_list_filter(field):
+    """Return Django admin list filter for `field` describing model queue.
+
+    For example::
+
+        class TaskAdmin(admin.TaskAdmin):
+            list_filter = [
+                modelqueue.admin_list_filter('status'),
+            ]
+
+    :param str field: field name
+    :returns: Django admin model queue list filter
+
+    """
     class QueueFilter(admin.SimpleListFilter):
         title = '%s queue status' % field
         parameter_name = '%s_queue' % field
