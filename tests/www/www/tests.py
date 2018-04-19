@@ -7,11 +7,17 @@ import time
 import modelqueue as mq
 import pytest
 
+from django.contrib.auth.models import User
+from django.test import Client
+
 from .models import Task
 
 
 def nop(obj):
-    assert mq.MIN_WORKING <= obj.status <= mq.MAX_WORKING
+    min_working = mq.Status.minimum(mq.State.working)
+    max_working = mq.Status.maximum(mq.State.working)
+    assert min_working <= obj.status <= max_working
+
 
 
 @pytest.mark.django_db
@@ -23,11 +29,8 @@ def test_run_waiting_finished():
         task.save()
         time.sleep(0.001)
 
-    waiting = Task.objects.filter(
-        status__gte=mq.MIN_WAITING,
-        status__lte=mq.MAX_WAITING,
-    )
-
+    waiting_kwargs = mq.Status.filter('status', mq.State.waiting)
+    waiting = Task.objects.filter(**waiting_kwargs)
     assert waiting.count() == count
 
     for num in range(count):
@@ -37,11 +40,8 @@ def test_run_waiting_finished():
 
     assert mq.run(tasks, 'status', nop) is None
 
-    finished = Task.objects.filter(
-        status__gte=mq.MIN_FINISHED,
-        status__lte=mq.MAX_FINISHED,
-    )
-
+    finished_kwargs = mq.Status.filter('status', mq.State.finished)
+    finished = Task.objects.filter(**finished_kwargs)
     assert finished.count() == count
 
 
@@ -50,17 +50,16 @@ def test_run_created():
     count = 10
 
     for num in range(count):
-        task = Task(data=str(num), status=mq.created())
+        task = Task(data=str(num), status=mq.Status.created())
         task.save()
 
     tasks = Task.objects.all()
-    created = Task.objects.filter(
-        status__gte=mq.MIN_CREATED,
-        status__lte=mq.MAX_CREATED,
-    )
-
     assert tasks.count() == count
+
+    created_kwargs = mq.Status.filter('status', mq.State.created)
+    created = Task.objects.filter(**created_kwargs)
     assert created.count() == count
+
     assert mq.run(tasks, 'status', nop) is None
 
 
@@ -70,12 +69,11 @@ def test_run_working():
     task1.save()
     task2 = mq.run(Task.objects.all(), 'status', nop)
     assert task1 == task2
-    state, _, _ = mq.parse(task2.status)
-    assert state == mq.FINISHED
+    assert mq.Status(task2.status).state == mq.State.finished
 
 
 def always_fails(obj):
-    assert mq.MIN_WORKING <= obj.status <= mq.MAX_WORKING
+    nop(obj)
     raise RuntimeError
 
 
@@ -93,9 +91,9 @@ def test_run_canceled():
             assert False, 'runtime error expected'
 
         task.refresh_from_db()
-        state, _, attempts = mq.parse(task.status)
-        assert state == mq.WAITING
-        assert attempts == attempt + 1
+        status = mq.Status(task.status)
+        assert status.state == mq.State.waiting
+        assert status.attempts == attempt + 1
 
     try:
         mq.run(Task.objects.all(), 'status', always_fails)
@@ -105,13 +103,13 @@ def test_run_canceled():
         assert False, 'runtime error expected'
 
     task.refresh_from_db()
-    state, _, attempts = mq.parse(task.status)
-    assert state == mq.CANCELED
-    assert attempts == 4
+    status = mq.Status(task.status)
+    assert status.state == mq.State.canceled
+    assert status.attempts == 4
 
 
 def control_c(obj):
-    assert mq.MIN_WORKING <= obj.status <= mq.MAX_WORKING
+    nop(obj)
     raise KeyboardInterrupt
 
 
@@ -128,32 +126,32 @@ def test_run_canceled_no_retry():
         assert False, 'keyboard interrupt expected'
 
     task.refresh_from_db()
-    state, _, attempts = mq.parse(task.status)
-    assert state == mq.CANCELED
-    assert attempts == 1
+    status = mq.Status(task.status)
+    assert status.state == mq.State.canceled
+    assert status.attempts == 1
 
 
 @pytest.mark.django_db
 def test_run_timeout():
     task = Task(data=str(0))
     task.save()
-    state, moment, attempts = mq.parse(task.status)
-    assert state == mq.WAITING
-    moment -= dt.timedelta(hours=2)
+    state, priority, attempts = mq.Status(task.status).parse()
+    assert state == mq.State.waiting
+    priority -= dt.timedelta(hours=2)
     assert attempts == 0
-    task.status = mq.combine(mq.WORKING, moment, attempts)
+    task.status = mq.Status.working(priority, 0)
     task.save()
     assert mq.run(Task.objects.all(), 'status', nop) == task
     task.refresh_from_db()
-    state, _, attempts = mq.parse(task.status)
-    assert state == mq.FINISHED
-    assert attempts == 2
+    status = mq.Status(task.status)
+    assert status.state == mq.State.finished
+    assert status.attempts == 2
 
 
 @pytest.mark.django_db
 def test_run_future():
     future = mq.now() + mq.ONE_HOUR
-    task = Task(data=str(0), status=mq.waiting(future))
+    task = Task(data=str(0), status=mq.Status.waiting(future))
     task.save()
     assert mq.run(Task.objects.all(), 'status', nop) is None
 
@@ -161,13 +159,13 @@ def test_run_future():
 @pytest.mark.django_db
 def test_run_timeout_delay():
     past = mq.now() - mq.ONE_HOUR
-    task = Task(data=str(0), status=mq.working(past))
+    task = Task(data=str(0), status=mq.Status.working(past))
     task.save()
     assert mq.run(Task.objects.all(), 'status', nop, delay=mq.ONE_HOUR) is None
     task.refresh_from_db()
-    state, _, attempts = mq.parse(task.status)
-    assert state == mq.WAITING
-    assert attempts == 1
+    status = mq.Status(task.status)
+    assert status.state == mq.State.waiting
+    assert status.attempts == 1
     assert mq.run(Task.objects.all(), 'status', nop) is None
 
 
@@ -183,14 +181,14 @@ def test_run_error_delay():
     else:
         assert False, 'runtime error expected'
     task.refresh_from_db()
-    state, _, attempts = mq.parse(task.status)
-    assert state == mq.WAITING
-    assert attempts == 1
+    status = mq.Status(task.status)
+    assert status.state == mq.State.waiting
+    assert status.attempts == 1
     assert mq.run(Task.objects.all(), 'status', always_fails) is None
 
 
 def maybe(obj):
-    assert mq.MIN_WORKING <= obj.status <= mq.MAX_WORKING
+    nop(obj)
     choice = random.randrange(3)
 
     if choice == 0:
@@ -213,7 +211,8 @@ def worker(counter):
             if random.randrange(100):
                 task = Task(data=str(next(counter)))
             else:
-                task = Task(data=str(next(counter)), status=mq.created())
+                status = mq.Status.created()
+                task = Task(data=str(next(counter)), status=status)
             task.save()
         else:
             try:
@@ -252,13 +251,58 @@ def test_run_maybe():
     attemptses = co.Counter()
 
     for task in tasks:
-        state, _, attempts = mq.parse(task.status)
-        states[state] += 1
-        attemptses[attempts] += 1
+        status = mq.Status(task.status)
+        states[status.state] += 1
+        attemptses[status.attempts] += 1
 
-    print('')
+    print()
     print('States:', sorted(states.most_common()))
     print('Attempts:', sorted(attemptses.most_common()))
 
     assert all(state in states for state in (1, 2, 4, 5))
     assert all(attempts in attemptses for attempts in range(5))
+
+
+@pytest.mark.django_db
+def test_tally():
+    result = {
+        'created': 1,
+        'waiting': 2,
+        'working': 3,
+        'finished': 4,
+        'canceled': 5,
+    }
+
+    for state in mq.Status.states:
+        for num in range(state):
+            func = getattr(mq.Status, str(state))
+            task = Task(data=str(int(state)), status=func())
+            task.save()
+
+    tasks = Task.objects.all()
+    assert mq.Status.tally(tasks, 'status') == result
+
+
+@pytest.mark.django_db
+def test_admin_list_filter():
+    user = User.objects.create(username='alice', password='password')
+    user.is_superuser = True
+    user.is_staff = True
+    user.save()
+
+    client = Client()
+    client.force_login(user)
+
+    for state in mq.Status.states:
+        for num in range(state * 2):
+            func = getattr(mq.Status, str(state))
+            task = Task(data=str(int(state)), status=func())
+            task.save()
+
+    response = client.get('/admin/www/task/')
+    assert b'30 tasks' in response.content
+
+    for state in mq.Status.states:
+        url = '/admin/www/task/?status_queue={name}'.format(name=state.name)
+        response = client.get(url)
+        assert (b'%d tasks' % (state * 2)) in response.content
