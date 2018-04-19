@@ -1,7 +1,21 @@
-"""ModelQueue: Task Queue Based on Django Models
-================================================
+"""ModelQueue API Reference
+===========================
 
-ModelQueue is an Apache2 licensed task queue based on Django models.
+:doc:`ModelQueue <index>` is an Apache2 licensed task queue based on Django models.
+
+The examples below assume the following in appname/models.py::
+
+    import modelqueue
+    from django.db import models
+
+    class Task(models.Model):
+        data = models.TextField()
+        status = modelqueue.StatusField(
+            db_index=True,
+            # ^-- Index for faster queries.
+            default=modelqueue.Status.waiting,
+            # ^-- Waiting state is ready to run.
+        )
 
 """
 
@@ -310,7 +324,7 @@ for _state in Status.states:
 def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
     """Run `action` on results from `queryset` in queue defined by `field`.
 
-    For example::
+    For example in appname/management/commands/process_tasks.py::
 
         import modelqueue, time
         from django.core.management.base import BaseCommand
@@ -329,7 +343,7 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
                         # ^-- Callable to process model.
                     )
                     if task is None:
-                        time.sleep(0.001)
+                        time.sleep(0.1)
                         # ^-- Bring your own parallelism/concurrency.
 
             def process(self, report):
@@ -404,11 +418,12 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
 def admin_list_filter(field):
     """Return Django admin list filter for `field` describing model queue.
 
-    For example::
+    For example in appname/admin.py::
 
         class TaskAdmin(admin.TaskAdmin):
             list_filter = [
                 modelqueue.admin_list_filter('status'),
+                # ^-- Filter tasks in admin by queue state.
             ]
 
     :param str field: field name

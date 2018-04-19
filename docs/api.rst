@@ -1,20 +1,4 @@
-Django Model Queue API Reference
-================================
-
-.. contents::
-   :local:
-
-The examples below assume the following models::
-
-    import modelqueue
-    from django.db import models
-
-    class Task(models.Model):
-        data = models.TextField()
-        status = modelqueue.StatusField(
-            db_index=True,
-            default=modelqueue.Status.waiting,
-        )
+.. automodule:: modelqueue
 
 Functions
 ---------

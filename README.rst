@@ -3,49 +3,54 @@ ModelQueue: Task Queue Based on Django Models
 
 `ModelQueue`_ is an Apache2 licensed task queue based on Django models.
 
-Here's what it looks like:
-
-::
-
-    # yourapp/models.py
+For example, in appname/models.py::
 
     import modelqueue
     from django.db import models
 
-    class Report(models.Model):
-        upload = models.FileField()
+    class Task(models.Model):
+        data = models.TextField()
         status = modelqueue.StatusField(
-        # ^-- Add status field.
             db_index=True,
-            # ^-- Add index for faster queries.
+            # ^-- Index for faster queries.
             default=modelqueue.Status.waiting,
-            # ^-- Set default state to WAITING.
+            # ^-- Waiting state is ready to run.
         )
 
-    # yourapp/management/commands/process_report_uploads.py
+And in appname/management/commands/process_tasks.py::
 
     import modelqueue, time
     from django.core.management.base import BaseCommand
+    from .models import Task
 
     class Command(BaseCommand):
 
         def handle(self, *args, **options):
             while True:
-                modelqueue.run(
-                    Report.objects.all(),
+                task = modelqueue.run(
+                    Task.objects.all(),
                     # ^-- Queryset of models to process.
                     'status',
                     # ^-- Field name for model queue.
                     self.process,
                     # ^-- Callable to process model.
                 )
-                time.sleep(0.001)
-                # ^-- Bring your own parallelism/concurrency.
+                if task is None:
+                    time.sleep(0.1)
+                    # ^-- Bring your own parallelism/concurrency.
 
         def process(self, report):
-            pass  # Process report uploads.
+            pass  # Process task models.
 
-ModelQueue is a hazardous project. It takes a bad idea and makes it easy and
+And in appname/admin.py::
+
+    class TaskAdmin(admin.TaskAdmin):
+        list_filter = [
+            modelqueue.admin_list_filter('status'),
+            # ^-- Filter tasks in admin by queue state.
+        ]
+
+`ModelQueue`_ is a hazardous project. It takes a bad idea and makes it easy and
 effective. You may come to regret using your database as a task queue but it
 won't be today!
 
@@ -54,7 +59,7 @@ Testimonials
 
 "I didn't design relational database systems for this." ~ `Edgar F. Codd`_
 
-"Well at least you're using transactions." ~ `Jim Gray`_
+"Well, at least you're using transactions." ~ `Jim Gray`_
 
 "You have successfully ignored most of what's important in queueing theory." ~
 `Agner Krarup Erlang`_
@@ -89,16 +94,16 @@ Features
 Quickstart
 ----------
 
-Installing ModelQueue is simple with `pip
-<https://pypi.python.org/pypi/pip>`_::
+Installing `ModelQueue`_ is simple with `pip
+<https://pypi.org/project/pip/>`_::
 
-  $ pip install modelqueue
+    $ python -m pip install modelqueue
 
 You can access documentation in the interpreter with Python's built-in help
 function::
 
-  >>> import modelqueue
-  >>> help(modelqueue)
+    >>> import modelqueue
+    >>> help(modelqueue)
 
 User Guide
 ----------
