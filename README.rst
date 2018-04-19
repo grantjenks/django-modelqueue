@@ -57,16 +57,16 @@ won't be today!
 Testimonials
 ------------
 
-"I didn't design relational database systems for this." ~ `Edgar F. Codd`_
+"I didn't design relational database systems for this." ~ `Edgar Codd`_
 
 "Well, at least you're using transactions." ~ `Jim Gray`_
 
 "You have successfully ignored most of what's important in queueing theory." ~
-`Agner Krarup Erlang`_
+`Agner Erlang`_
 
-.. _`Edgar F. Codd`: https://en.wikipedia.org/wiki/Edgar_F._Codd
+.. _`Edgar Codd`: https://en.wikipedia.org/wiki/Edgar_F._Codd
 .. _`Jim Gray`: https://en.wikipedia.org/wiki/Jim_Gray_(computer_scientist)
-.. _`Agner Krarup Erlang`: https://en.wikipedia.org/wiki/Agner_Krarup_Erlang
+.. _`Agner Erlang`: https://en.wikipedia.org/wiki/Agner_Krarup_Erlang
 
 Does your company or website use `ModelQueue`_? Send us a `message
 <contact@grantjenks.com>`_ and let us know.
