@@ -305,4 +305,4 @@ def test_admin_list_filter():
     for state in mq.Status.states:
         url = '/admin/www/task/?status_queue={name}'.format(name=state.name)
         response = client.get(url)
-        assert (b'%d tasks' % (state * 2)) in response.content
+        assert '{} tasks'.format(state * 2).encode() in response.content
