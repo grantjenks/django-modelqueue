@@ -80,10 +80,10 @@ class Status(int):
                  month |     second |
                       day       millisecond
 
-    >>> status = Status(1201801020304567890)
-    >>> assert status.state == State.created
+    >>> status = Status(3201801020304567896)
+    >>> assert status.state == State.working
     >>> assert status.priority == 20180102030456789
-    >>> assert status.attempts == 0
+    >>> assert status.attempts == 6
     >>> Status.canceled(123, 5)
     Status(5000000000000001235)
 
@@ -101,17 +101,38 @@ class Status(int):
 
     @property
     def state(self):
+        """Return state of status.
+
+        >>> status = Status(3201801020304567896)
+        >>> status.state
+        State(3, 'working')
+
+        """
         num = self // self._state_offset
         return next(state for state in self.states if state == num)
 
 
     @property
     def priority(self):
+        """Return priority of status.
+
+        >>> status = Status(3201801020304567896)
+        >>> status.priority
+        20180102030456789
+
+        """
         return int(format(self, '019d')[1:-1])
 
 
     @property
     def attempts(self):
+        """Return attempts of status.
+
+        >>> status = Status(3201801020304567896)
+        >>> status.attempts
+        6
+
+        """
         return self % 10
 
 
@@ -252,7 +273,7 @@ class Status(int):
         If `datetime` is True (the default), then parse priority into datetime
         object. Priority has format::
 
-                   priority         
+                   priority
             |----------------------|
             2018 03 27  14 43 25 759
              |   |   |   |  |  |  |
@@ -431,6 +452,7 @@ def admin_list_filter(field):
 
     """
     class QueueFilter(admin.SimpleListFilter):
+        "Django admin ModelQueue list filter."
         title = '%s queue status' % field
         parameter_name = '%s_queue' % field
 
