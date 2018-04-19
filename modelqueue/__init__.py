@@ -1,6 +1,5 @@
-"""
-ModelQueue: Task Queue Based on Django Models
-=============================================
+"""ModelQueue: Task Queue Based on Django Models
+================================================
 
 Benchmarking
 ------------
@@ -44,26 +43,6 @@ from django.contrib import admin
 from django.db import models
 from django.db import transaction
 
-CREATED = 1
-WAITING = 2
-WORKING = 3
-FINISHED = 4
-CANCELED = 5
-STATES = CREATED, WAITING, WORKING, FINISHED, CANCELED
-STATE_OFFSET = 1000000000000000000
-
-MIN_CREATED = CREATED * STATE_OFFSET
-MAX_CREATED = ((CREATED + 1) * STATE_OFFSET) - 1
-MIN_WAITING = WAITING * STATE_OFFSET
-MAX_WAITING = ((WAITING + 1) * STATE_OFFSET) - 1
-MIN_WORKING = WORKING * STATE_OFFSET
-MAX_WORKING = ((WORKING + 1) * STATE_OFFSET) - 1
-MIN_FINISHED = FINISHED * STATE_OFFSET
-MAX_FINISHED = ((FINISHED + 1) * STATE_OFFSET) - 1
-MIN_CANCELED = CANCELED * STATE_OFFSET
-MAX_CANCELED = ((CANCELED + 1) * STATE_OFFSET) - 1
-MAX_ATTEMPTS = 9
-
 ONE_HOUR = dt.timedelta(hours=1)
 ZERO_SECS = dt.timedelta(seconds=0)
 
@@ -75,146 +54,284 @@ def now():
     return dt.datetime.now(pytz.utc)
 
 
-def parse(status):
-    "Parse integer status into state, moment, and attempts fields."
-    status = '{0:019d}'.format(status)
-    assert len(status) == 19
-    state = int(status[:1])
-    moment = dt.datetime(
-        year=int(status[1:5]),
-        month=int(status[5:7]),
-        day=int(status[7:9]),
-        hour=int(status[9:11]),
-        minute=int(status[11:13]),
-        second=int(status[13:15]),
-        microsecond=int(status[15:18]) * 1000,
-        tzinfo=pytz.utc,
-    )
-    attempts = int(status[18:19])
-    return state, moment, attempts
+class State(int):
+    """Model Queue State
 
-
-def combine(state, moment, attempts):
-    "Combine state, moment, and attempts fields into integer status."
-    template = (
-        '{state}'
-        '{year:04d}'
-        '{month:02d}'
-        '{day:02d}'
-        '{hour:02d}'
-        '{minute:02d}'
-        '{second:02d}'
-        '{millisecond:03d}'
-        '{attempts}'
-    )
-    result = template.format(
-        state=state,
-        year=moment.year,
-        month=moment.month,
-        day=moment.day,
-        hour=moment.hour,
-        minute=moment.minute,
-        second=moment.second,
-        millisecond=int(moment.microsecond / 1000.0),
-        attempts=attempts,
-    )
-    assert len(result) == 19
-    return int(result)
-
-
-def created(moment=None, attempts=0):
-    """Return created status with given moment and attempts.
-
-    When moment is None (the default), use now in UTC timezone.
+    >>> state = State(1, 'created')
+    >>> assert state == 1
+    >>> assert state.name == 'created'
+    >>> print(state)
+    created
+    >>> repr(state)
+    "State(1, 'created')"
 
     """
-    moment = now() if moment is None else moment
-    return combine(CREATED, moment, attempts)
+    def __new__(cls, value, name):
+        state = super(State, cls).__new__(cls, value)
+        state.name = name
+        return state
 
 
-def waiting(moment=None, attempts=0):
-    """Return waiting status with given moment and attempts.
-
-    When moment is None (the default), use now in UTC timezone.
-
-    """
-    moment = now() if moment is None else moment
-    return combine(WAITING, moment, attempts)
+    def __str__(self):
+        return self.name
 
 
-def working(moment=None, attempts=0):
-    """Return working status with given moment and attempts.
-
-    When moment is None (the default), use now in UTC timezone.
-
-    """
-    moment = now() if moment is None else moment
-    return combine(WORKING, moment, attempts)
+    def __repr__(self):
+        type_name = type(self).__name__
+        return '{}({!r}, {!r})'.format(type_name, int(self), self.name)
 
 
-def finished(moment=None, attempts=0):
-    """Return finished status with given moment and attempts.
+class Status(int):
+    """Model Queue Status
 
-    When moment is None (the default), use now in UTC timezone.
+    64-bit Signed Integer Field Format:
 
-    """
-    moment = now() if moment is None else moment
-    return combine(FINISHED, moment, attempts)
+        state        priority          attempt
+          |   |----------------------|   |
+          2   2018 03 27  14 43 25 759   0
+               |   |   |   |  |  |  |
+               |   |   | hour |  |  |
+              year |   |  minute |  |
+                 month |     second |
+                      day       millisecond
 
-
-def canceled(moment=None, attempts=0):
-    """Return canceled status with given moment and attempts.
-
-    When moment is None (the default), use now in UTC timezone.
+    >>> status = Status(1201801020304567890)
+    >>> assert status.state == State.created
+    >>> assert status.priority == 20180102030456789
+    >>> assert status.attempts == 0
 
     """
-    moment = now() if moment is None else moment
-    return combine(CANCELED, moment, attempts)
+    _state_offset = 1000000000000000000
+    states = [
+        State(1, 'created'),
+        State(2, 'waiting'),
+        State(3, 'working'),
+        State(4, 'finished'),
+        State(5, 'canceled'),
+    ]
+    max_attempts = 9
+
+
+    @property
+    def state(self):
+        num = self // self._state_offset
+        return next(state for state in self.states if state == num)
+
+
+    @property
+    def priority(self):
+        return int(format(self, '019d')[1:-1])
+
+
+    @property
+    def attempts(self):
+        return self % 10
+
+
+    @classmethod
+    def filter(cls, field, state):
+        """Filter `field` by `state`.
+
+        >>> kwargs = Status.filter('status', State.waiting)
+        >>> assert len(kwargs) == 2
+        >>> assert kwargs['status__gte'] == Status.minimum(State.waiting)
+        >>> assert kwargs['status__lte'] == Status.maximum(State.waiting)
+        >>> value = Status.filter('status', 'waiting')
+        >>> assert kwargs == value
+
+        """
+        if isinstance(state, str):
+            state = getattr(State, state)
+        assert isinstance(state, State)
+        kwargs = {
+            field + '__gte': Status.minimum(state),
+            field + '__lte': Status.maximum(state),
+        }
+        return kwargs
+
+
+    @classmethod
+    def minimum(cls, state):
+        """Calculate status minimum value given `state`.
+
+        >>> Status.minimum(State.working)
+        3000000000000000000
+        >>> Status.minimum('working')
+        3000000000000000000
+
+        """
+        if isinstance(state, str):
+            state = getattr(State, state)
+        return state * cls._state_offset
+
+
+    @classmethod
+    def maximum(cls, state):
+        """Calculate status maximum value given `state`.
+
+        >>> Status.maximum(State.working)
+        3999999999999999999
+        >>> Status.maximum('working')
+        3999999999999999999
+
+        """
+        if isinstance(state, str):
+            state = getattr(State, state)
+        return (state + 1) * cls._state_offset - 1
+
+
+    @classmethod
+    def tally(cls, queryset, field):
+        """Return mapping of state to count from `field` in `queryset`.
+
+        """
+        result = {}
+        for state in Status.states:
+            kwargs = cls.filter(field, state)
+            result[state.name] = queryset.all().filter(**kwargs).count()
+        return result
+
+
+    @classmethod
+    def combine(cls, state, priority, attempts):
+        """Combine `state`, `priority`, and `attempts` fields into status.
+
+        >>> Status.combine(State.waiting, 0, 1)
+        Status(2000000000000000001)
+        >>> Status.combine('waiting', 0, 2)
+        Status(2000000000000000002)
+        >>> priority = dt.datetime(2018, 1, 2, 3, 4, 56, 789123)
+        >>> Status.combine(State.waiting, priority, 3)
+        Status(2201801020304567893)
+
+        """
+        if isinstance(state, str):
+            state = getattr(State, state)
+
+        if isinstance(priority, dt.datetime):
+            template = (
+                '{year:04d}'
+                '{month:02d}'
+                '{day:02d}'
+                '{hour:02d}'
+                '{minute:02d}'
+                '{second:02d}'
+                '{millisecond:03d}'
+            )
+            priority = int(template.format(
+                year=priority.year,
+                month=priority.month,
+                day=priority.day,
+                hour=priority.hour,
+                minute=priority.minute,
+                second=priority.second,
+                millisecond=int(priority.microsecond / 1000.0),
+            ))
+
+        result = '{state}{priority:017d}{attempts}'.format(
+            state=int(state),
+            priority=priority,
+            attempts=attempts,
+        )
+        assert len(result) == 19
+        return Status(result)
+
+
+    def parse(self, datetime=True):
+        """Parse status into state, priority, and attempts fields.
+
+        If `datetime` is True (the default), then parse priority into datetime
+        object. Priority has format:
+
+                   priority         
+            |----------------------|
+            2018 03 27  14 43 25 759
+             |   |   |   |  |  |  |
+             |   |   | hour |  |  |
+            year |   |  minute |  |
+               month |     second |
+                    day       millisecond
+
+        >>> status = Status(1201801020304567895)
+        >>> state, priority, attempts = status.parse()
+        >>> state
+        State(1, 'created')
+        >>> priority
+        datetime.datetime(2018, 1, 2, 3, 4, 56, 789000, tzinfo=<UTC>)
+        >>> attempts
+        5
+        >>> status = Status(3000000000000000007)
+        >>> status.parse(datetime=False)
+        (State(3, 'working'), 0, 7)
+
+        """
+        priority = self.priority
+        if datetime:
+            priority = str(priority)
+            priority = dt.datetime(
+                year=int(priority[0:4]),
+                month=int(priority[4:6]),
+                day=int(priority[6:8]),
+                hour=int(priority[8:10]),
+                minute=int(priority[10:12]),
+                second=int(priority[12:14]),
+                microsecond=int(priority[14:17]) * 1000,
+                tzinfo=pytz.utc,
+            )
+        return self.state, priority, self.attempts
+
+
+    def __repr__(self):
+        type_name = type(self).__name__
+        return '{}({})'.format(type_name, int(self))
+
+
+def _make_status_method(state):
+    def status(cls, priority=None, attempts=0):
+        """Return new {name} status with given priority and attempts.
+
+        When `priority` is None (the default), use ``now()``.
+
+        """
+        priority = now() if priority is None else priority
+        return cls.combine(state, priority, attempts)
+    status.__name__ = state.name
+    status.__doc__ = status.__doc__.format(name=state.name)
+    return status
+
+
+for _state in Status.states:
+    setattr(State, _state.name, _state)
+    setattr(Status, _state.name, classmethod(_make_status_method(_state)))
 
 
 def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
-    r"""Run `action` on objects from `queryset` in queue defined by `field`.
-
-    States:
-
-        1. CREATED
-        2. WAITING
-        3. WORKING
-        4. FINISHED
-        5. CANCELED
-
-    Field Format:
-
-        2  2018 03 27  14 43 25 759  0
-         \    \  \  \    \  \  \  \   \
-        state  \  \  \  hour \  \  \  attempt
-              year \  \   minute \  \
-                 month \      second \
-                       day       millisecond
+    """Run `action` on results from `queryset` in queue defined by `field`.
 
     """
-    assert retry <= 8
+    assert 0 <= retry <= 8
     with transaction.atomic():
-        kwargs = {field + '__gte': MIN_WORKING}
+        kwargs = {field + '__gte': Status.minimum(State.working)}
         working_query = queryset.all().filter(**kwargs)
-        kwargs = {field + '__lte': working(now() - timeout, MAX_ATTEMPTS)}
+        max_working = Status.working(now() - timeout, Status.max_attempts)
+        kwargs = {field + '__lte': max_working}
         working_query = working_query.filter(**kwargs)
         working_query = working_query.order_by(field)
         working_query = working_query.select_for_update()
 
         for worker in working_query[:1]:
-            status = getattr(worker, field)
-            state, _, attempts = parse(status)
-            assert state == WORKING
-            moment = now() + delay
-            attempts += 1
-            combiner = waiting if attempts <= retry else canceled
-            setattr(worker, field, combiner(moment, attempts))
+            status = Status(getattr(worker, field))
+            assert status.state == State.working
+            priority = now() + delay
+            attempts = status.attempts + 1
+            state = Status.waiting if attempts <= retry else Status.canceled
+            setattr(worker, field, state(priority, attempts))
             worker.save()
 
-        kwargs = {field + '__gte': MIN_WAITING}
+        kwargs = {field + '__gte': Status.minimum(State.waiting)}
         waiting_query = queryset.all().filter(**kwargs)
-        kwargs = {field + '__lte': waiting(now(), MAX_ATTEMPTS)}
+        max_waiting = Status.waiting(now(), Status.max_attempts)
+        kwargs = {field + '__lte': max_waiting}
         waiting_query = waiting_query.filter(**kwargs)
         waiting_query = waiting_query.order_by(field)
         waiting_query = waiting_query.select_for_update()
@@ -224,10 +341,10 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
             return None
 
         worker, = waiters
-        status = getattr(worker, field)
-        state, _, attempts = parse(status)
-        assert state == WAITING
-        setattr(worker, field, working(now(), attempts))
+        status = Status(getattr(worker, field))
+        assert status.state == State.waiting
+        attempts = status.attempts
+        setattr(worker, field, Status.working(now(), attempts))
         worker.save()
 
     attempts += 1
@@ -236,20 +353,20 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
         action(worker)
     except (KeyboardInterrupt, Exception):
         with transaction.atomic():
-            moment = now() + delay
-            combiner = waiting if attempts <= retry else canceled
-            setattr(worker, field, combiner(moment, attempts))
+            priority = now() + delay
+            state = Status.waiting if attempts <= retry else Status.canceled
+            setattr(worker, field, state(priority, attempts))
             worker.save()
         raise
     else:
         with transaction.atomic():
-            setattr(worker, field, finished(now(), attempts))
+            setattr(worker, field, Status.finished(now(), attempts))
             worker.save()
 
     return worker
 
 
-def filter(field):
+def admin_list_filter(field):
     class QueueFilter(admin.SimpleListFilter):
         title = '%s queue status' % field
         parameter_name = '%s_queue' % field
@@ -257,11 +374,11 @@ def filter(field):
 
         def lookups(self, request, model_admin):
             return (
-                (CREATED, 'Created'),
-                (WAITING, 'Waiting'),
-                (WORKING, 'Working'),
-                (FINISHED, 'Finished'),
-                (CANCELED, 'Canceled'),
+                (State.created, 'Created'),
+                (State.waiting, 'Waiting'),
+                (State.working, 'Working'),
+                (State.finished, 'Finished'),
+                (State.canceled, 'Canceled'),
             )
 
 
@@ -271,29 +388,11 @@ def filter(field):
             if value is None:
                 return queryset
 
-            value = int(value)
-            kwargs = {
-                field + '__gte': value * STATE_OFFSET,
-                field + '__lte': ((value + 1) * STATE_OFFSET) - 1,
-            }
+            state = getattr(State, value)
+            kwargs = Status.filter(field, state)
             return queryset.filter(**kwargs)
 
     return QueueFilter
-
-
-def status(queryset, field):
-    # TODO: Rename to count_states(queryset, field)
-    counts = []
-
-    for value in STATES:
-        kwargs = {
-            field + '__gte': value * STATE_OFFSET,
-            field + '__lte': ((value + 1) * STATE_OFFSET) - 1,
-        }
-        count = queryset.filter(**kwargs).count()
-        counts.append(count)
-
-    return tuple(counts)
 
 
 __title__ = 'modelqueue'
