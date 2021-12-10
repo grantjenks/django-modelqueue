@@ -342,6 +342,15 @@ for _state in Status.states:
     setattr(Status, _state.name, classmethod(_make_status_method(_state)))
 
 
+class Abort(Exception):
+    """Abort processing the task."""
+    def __init__(self, state=None, delay=None, priority=None):
+        self.state = state
+        self.delay = delay
+        self.attempts = attempts
+        self.priority = priority
+
+
 def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
     """Run `action` on results from `queryset` in queue defined by `field`.
 
@@ -421,6 +430,17 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
 
     try:
         action(worker)
+    except Abort as abort:
+        # TODO: WIP!
+        with transaction.atomic():
+            if abort.delay is not None:
+                delay = abort.delay
+            if abort.state is None:
+                state = Status.waiting if attempts <= retry else Status.canceled
+            else:
+                state = abort.state
+            setattr(worker, field, state(priority, attempts))
+            worker.save()
     except (KeyboardInterrupt, Exception):
         with transaction.atomic():
             priority = now() + delay
