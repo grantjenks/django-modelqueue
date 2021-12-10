@@ -432,6 +432,11 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
         action(worker)
     except Abort as abort:
         # TODO: WIP!
+        # Scenarios:
+        # Abort and retry (like no attempt occurred)       <-- raise Retry
+        # Abort and increment attempt (with normal logic)  <-- raise Abort
+        # Abort and cancel (do not attempt again)          <-- raise Cancel
+        # For each scenario, allow delay to be customized
         with transaction.atomic():
             if abort.delay is not None:
                 delay = abort.delay
