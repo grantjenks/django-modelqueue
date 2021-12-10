@@ -1,10 +1,10 @@
 import io
+import pathlib
+import re
 import setuptools as st
 import sys
 
 from setuptools.command.test import test as TestCommand
-
-import modelqueue
 
 
 class Tox(TestCommand):
@@ -22,9 +22,13 @@ with open('README.rst') as reader:
     readme = reader.read()
 
 
+init = (pathlib.Path('modelqueue') / '__init__.py').read_text()
+match = re.search(r"^__version__ = '(.+)'$", init, re.MULTILINE)
+version = match.group(1)
+
 st.setup(
     name='modelqueue',
-    version=modelqueue.__version__,
+    version=version,
     description='Task queue based on Django models.',
     long_description=readme,
     author='Grant Jenks',
@@ -35,7 +39,7 @@ st.setup(
     tests_require=['tox'],
     cmdclass={'test': Tox},
     license='Apache 2.0',
-    install_requires=[],
+    install_requires=['pytz'],
     classifiers=(
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
