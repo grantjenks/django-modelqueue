@@ -342,13 +342,34 @@ for _state in Status.states:
     setattr(Status, _state.name, classmethod(_make_status_method(_state)))
 
 
-class Abort(Exception):
-    """Abort processing the task."""
-    def __init__(self, state=None, delay=None, priority=None):
-        self.state = state
+class Retry(Exception):
+    """Retry processing the task.
+
+    Retry does *not* increment the attempt count of the task.
+
+    """
+    def __init__(self, delay=None):
         self.delay = delay
-        self.attempts = attempts
-        self.priority = priority
+
+
+class Abort(Exception):
+    """Abort processing the task.
+
+    Abort *does* increment the attempt count of the task. If the attempts limit
+    is reached then the task will be canceled.
+
+    """
+    def __init__(self, delay=None):
+        self.delay = delay
+
+
+class Cancel(Exception):
+    """Cancel processing the task.
+
+    Cancel both increments the attempt count and changes the task state to
+    canceled.
+
+    """
 
 
 def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
@@ -430,32 +451,26 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
 
     try:
         action(worker)
-    except Abort as abort:
-        # TODO: WIP!
-        # Scenarios:
-        # Abort and retry (like no attempt occurred)       <-- raise Retry
-        # Abort and increment attempt (with normal logic)  <-- raise Abort
-        # Abort and cancel (do not attempt again)          <-- raise Cancel
-        # For each scenario, allow delay to be customized
-        with transaction.atomic():
-            if abort.delay is not None:
-                delay = abort.delay
-            if abort.state is None:
-                state = Status.waiting if attempts <= retry else Status.canceled
-            else:
-                state = abort.state
-            setattr(worker, field, state(priority, attempts))
-            worker.save()
+    except Retry as exc:
+        priority = now() + (delay if exc.delay is None else exc.delay)
+        attempts -= 1
+        setattr(worker, field, Status.waiting(priority, attempts))
+    except Abort as exc:
+        state = Status.waiting if attempts <= retry else Status.canceled
+        delay = delay if exc.delay is None else exc.delay
+        priority = now() + (delay if attempts <= retry else ZERO_SECS)
+        setattr(worker, field, state(priority, attempts))
+    except Cancel:
+        setattr(worker, field, Status.canceled(now(), attempts))
     except (KeyboardInterrupt, Exception):
-        with transaction.atomic():
-            priority = now() + delay
-            state = Status.waiting if attempts <= retry else Status.canceled
-            setattr(worker, field, state(priority, attempts))
-            worker.save()
+        state = Status.waiting if attempts <= retry else Status.canceled
+        priority = now() + (delay if attempts <= retry else ZERO_SECS)
+        setattr(worker, field, state(priority, attempts))
         raise
     else:
+        setattr(worker, field, Status.finished(now(), attempts))
+    finally:
         with transaction.atomic():
-            setattr(worker, field, Status.finished(now(), attempts))
             worker.save()
 
     return worker
