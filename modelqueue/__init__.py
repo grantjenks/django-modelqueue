@@ -17,7 +17,6 @@ The examples below assume the following in appname/models.py::
             default=modelqueue.Status.waiting,
             # ^-- Waiting state is ready to run.
         )
-
 """
 
 import datetime as dt
