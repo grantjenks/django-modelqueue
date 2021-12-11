@@ -9,6 +9,15 @@ Functions
 
 .. autofunction:: modelqueue.now
 
+Exceptions
+----------
+
+.. autoclass:: modelqueue.Retry
+
+.. autoclass:: modelqueue.Abort
+
+.. autoclass:: modelqueue.Cancel
+
 State
 -----
 
