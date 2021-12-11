@@ -603,8 +603,8 @@ def admin_list_filter(field):
 
 
 __title__ = 'modelqueue'
-__version__ = '1.0.3'
-__build__ = 0x010003
+__version__ = '2.0.0'
+__build__ = 0x020000
 __author__ = 'Grant Jenks'
 __license__ = 'Apache 2.0'
-__copyright__ = 'Copyright 2018 Grant Jenks'
+__copyright__ = 'Copyright 2022 Grant Jenks'
