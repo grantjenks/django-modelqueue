@@ -1,0 +1,69 @@
+name: integration
+
+on: [push]
+
+jobs:
+
+  checks:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 6
+      matrix:
+        check: [blackcheck, flake8, isortcheck, mypy, pylint, rstcheck]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: 3.9
+    - name: Install dependencies
+      run: |
+        pip install --upgrade pip
+        pip install tox
+    - name: Run checks with tox
+      run: |
+        tox -e ${{ matrix.check }}
+
+  tests:
+    needs: checks
+    runs-on: ${{ matrix.os }}
+    strategy:
+      max-parallel: 8
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest, ubuntu-16.04]
+        python-version: [3.6, 3.7, 3.8, 3.9]
+
+    steps:
+    - name: Download Build Tools for Visual Studio 2019
+      if: matrix.os == 'windows-latest'
+      run: Invoke-WebRequest -Uri https://aka.ms/vs/16/release/vs_buildtools.exe -OutFile vs_buildtools.exe
+
+    - name: Run vs_buildtools.exe install
+      if: matrix.os == 'windows-latest'
+      run: ./vs_buildtools.exe --quiet --wait --norestart --nocache --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.VC.140 --includeRecommended.
+
+    - name: Set up Python ${{ matrix.python-version }} x64
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+        architecture: x64
+
+    - uses: actions/checkout@v2
+
+    - name: Install tox
+      run: |
+        pip install --upgrade pip
+        pip install tox
+
+    - name: Test with tox
+      run: tox -e py
+
+    - name: Install cython and pytest
+      run: pip install cython pytest pytest-benchmark pytest-cov
+
+    - name: Build Cython extension
+      run: python setup.py build_ext --inplace
+
+    - name: Test with pytest
+      run: pytest --cov-fail-under 0
