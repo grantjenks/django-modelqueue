@@ -11,6 +11,7 @@ For example, in appname/models.py::
     class Task(models.Model):
         data = models.TextField()
         status = modelqueue.StatusField(
+            # ^-- Just a models.BigIntegerField
             db_index=True,
             # ^-- Index for faster queries.
             default=modelqueue.Status.waiting,
@@ -75,20 +76,24 @@ Features
 --------
 
 - Pure-Python
+- Supports Django's admin interface
+- Tasks can be retried, aborted, and canceled
+- Supports multiple attempts per task
+- Bring your own parallelism with threading, multiprocessing, or asyncio
+- Performance matters (add a single 64-bit field to models)
 - Fully documented
-- Performance matters
 - 100% test coverage
-- Hours of stress testing
+- Years of stress testing in production
 - Developed on Python 3.10
-- Tested on Django 3.2
+- Compatible with all Django versions
 - Tested on CPython 3.6, 3.7, 3.8, 3.9, 3.10
 - Tested on Linux, Mac OS X, and Windows
 
-.. image:: https://api.travis-ci.org/grantjenks/django-modelqueue.svg?branch=master
-    :target: http://www.grantjenks.com/docs/modelqueue/
+.. image:: https://github.com/grantjenks/django-modelqueue/workflows/integration/badge.svg
+   :target: https://github.com/grantjenks/django-modelqueue/actions?query=workflow%3Aintegration
 
-.. image:: https://ci.appveyor.com/api/projects/status/github/grantjenks/django-modelqueue?branch=master&svg=true
-    :target: http://www.grantjenks.com/docs/modelqueue/
+.. image:: https://github.com/grantjenks/django-modelqueue/workflows/release/badge.svg
+   :target: https://github.com/grantjenks/django-modelqueue/actions?query=workflow%3Arelease
 
 Quickstart
 ----------
