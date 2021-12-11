@@ -340,6 +340,7 @@ class Retry(Exception):
     Retry does *not* increment the attempt count of the task.
 
     """
+
     # pylint: disable=super-init-not-called
     def __init__(self, delay=None):
         self.delay = delay
@@ -352,6 +353,7 @@ class Abort(Exception):
     is reached then the task will be canceled.
 
     """
+
     # pylint: disable=super-init-not-called
     def __init__(self, delay=None):
         self.delay = delay
