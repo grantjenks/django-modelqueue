@@ -263,6 +263,60 @@ def test_run_maybe():
     assert all(attempts in attemptses for attempts in range(5))
 
 
+def raise_retry(obj):
+    nop(obj)
+    raise mq.Retry(dt.timedelta(seconds=7))
+
+
+@pytest.mark.django_db
+def test_raise_retry():
+    task = Task(data=str(0))
+    task.save()
+    before_status = mq.Status(task.status)
+    task = mq.run(Task.objects.all(), 'status', raise_retry)
+    task.refresh_from_db()
+    after_status = mq.Status(task.status)
+    assert after_status.state == mq.State.waiting
+    assert after_status.priority >= before_status.priority
+    assert after_status.attempts == 0
+
+
+def raise_abort(obj):
+    nop(obj)
+    raise mq.Abort(dt.timedelta(seconds=7))
+
+
+@pytest.mark.django_db
+def test_raise_abort():
+    task = Task(data=str(0))
+    task.save()
+    before_status = mq.Status(task.status)
+    task = mq.run(Task.objects.all(), 'status', raise_abort)
+    task.refresh_from_db()
+    after_status = mq.Status(task.status)
+    assert after_status.state == mq.State.waiting
+    assert after_status.priority >= before_status.priority
+    assert after_status.attempts == 1
+
+
+def raise_cancel(obj):
+    nop(obj)
+    raise mq.Cancel
+
+
+@pytest.mark.django_db
+def test_raise_cancel():
+    task = Task(data=str(0))
+    task.save()
+    before_status = mq.Status(task.status)
+    task = mq.run(Task.objects.all(), 'status', raise_cancel)
+    task.refresh_from_db()
+    after_status = mq.Status(task.status)
+    assert after_status.state == mq.State.canceled
+    assert after_status.priority >= before_status.priority
+    assert after_status.attempts == 1
+
+
 @pytest.mark.django_db
 def test_tally():
     result = {
