@@ -8,6 +8,7 @@
 .coverage
 .pytest_cache/
 /.tox/
+/docs/_build/
 
 # setup and upload directories
 /build/
