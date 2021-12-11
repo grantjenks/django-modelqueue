@@ -1,4 +1,3 @@
-import io
 import pathlib
 import re
 import sys
