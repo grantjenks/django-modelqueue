@@ -19,7 +19,6 @@ def nop(obj):
     assert min_working <= obj.status <= max_working
 
 
-
 @pytest.mark.django_db
 def test_run_waiting_finished():
     count = 10
@@ -229,6 +228,7 @@ def worker(counter):
                 pass
 
     from django.db import connection
+
     connection.close()
 
 

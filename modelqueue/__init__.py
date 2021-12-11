@@ -16,7 +16,6 @@ The examples below assume the following in appname/models.py::
             default=modelqueue.Status.waiting,
             # ^-- Waiting state is ready to run.
         )
-
 """
 
 import datetime as dt
@@ -33,7 +32,7 @@ StatusField = models.BigIntegerField
 
 
 def now():
-    "Return now datetime in UTC timezone."
+    """Return now datetime in UTC timezone."""
     return dt.datetime.now(pytz.utc)
 
 
@@ -51,15 +50,14 @@ class State(int):
     State(1, 'created')
 
     """
+
     def __new__(cls, value, name):
         state = super(State, cls).__new__(cls, value)
         state.name = name
         return state
 
-
     def __str__(self):
         return self.name
-
 
     def __repr__(self):
         type_name = type(self).__name__
@@ -88,6 +86,7 @@ class Status(int):
     Status(5000000000000001235)
 
     """
+
     _state_offset = 1000000000000000000
     states = [
         State(1, 'created'),
@@ -97,7 +96,6 @@ class Status(int):
         State(5, 'canceled'),
     ]
     max_attempts = 9
-
 
     @property
     def state(self):
@@ -111,7 +109,6 @@ class Status(int):
         num = self // self._state_offset
         return next(state for state in self.states if state == num)
 
-
     @property
     def priority(self):
         """Return priority of status.
@@ -123,7 +120,6 @@ class Status(int):
         """
         return int(format(self, '019d')[1:-1])
 
-
     @property
     def attempts(self):
         """Return attempts of status.
@@ -134,7 +130,6 @@ class Status(int):
 
         """
         return self % 10
-
 
     @classmethod
     def filter(cls, field, state):
@@ -165,7 +160,6 @@ class Status(int):
         }
         return kwargs
 
-
     @classmethod
     def minimum(cls, state):
         """Calculate status minimum value given `state`.
@@ -183,7 +177,6 @@ class Status(int):
             state = getattr(State, state)
         return state * cls._state_offset
 
-
     @classmethod
     def maximum(cls, state):
         """Calculate status maximum value given `state`.
@@ -200,7 +193,6 @@ class Status(int):
         if isinstance(state, str):
             state = getattr(State, state)
         return (state + 1) * cls._state_offset - 1
-
 
     @classmethod
     def tally(cls, queryset, field):
@@ -220,7 +212,6 @@ class Status(int):
             kwargs = cls.filter(field, state)
             result[state.name] = queryset.all().filter(**kwargs).count()
         return result
-
 
     @classmethod
     def combine(cls, state, priority, attempts):
@@ -248,15 +239,17 @@ class Status(int):
                 '{second:02d}'
                 '{millisecond:03d}'
             )
-            priority = int(template.format(
-                year=priority.year,
-                month=priority.month,
-                day=priority.day,
-                hour=priority.hour,
-                minute=priority.minute,
-                second=priority.second,
-                millisecond=int(priority.microsecond / 1000.0),
-            ))
+            priority = int(
+                template.format(
+                    year=priority.year,
+                    month=priority.month,
+                    day=priority.day,
+                    hour=priority.hour,
+                    minute=priority.minute,
+                    second=priority.second,
+                    millisecond=int(priority.microsecond / 1000.0),
+                )
+            )
 
         result = '{state}{priority:017d}{attempts}'.format(
             state=int(state),
@@ -265,7 +258,6 @@ class Status(int):
         )
         assert len(result) == 19
         return Status(result)
-
 
     def parse(self, datetime=True):
         """Parse status into state, priority, and attempts fields.
@@ -313,7 +305,6 @@ class Status(int):
             )
         return self.state, priority, self.attempts
 
-
     def __repr__(self):
         type_name = type(self).__name__
         return '{}({})'.format(type_name, int(self))
@@ -332,6 +323,7 @@ def _make_status_method(state):
         """
         priority = now() if priority is None else priority
         return cls.combine(state, priority, attempts)
+
     status.__name__ = state.name
     status.__doc__ = status.__doc__.format(name=state.name)
     return status
@@ -348,6 +340,7 @@ class Retry(Exception):
     Retry does *not* increment the attempt count of the task.
 
     """
+
     def __init__(self, delay=None):
         self.delay = delay
 
@@ -359,6 +352,7 @@ class Abort(Exception):
     is reached then the task will be canceled.
 
     """
+
     def __init__(self, delay=None):
         self.delay = delay
 
@@ -440,7 +434,7 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
         if not waiters:
             return None
 
-        worker, = waiters
+        (worker,) = waiters
         status = Status(getattr(worker, field))
         assert status.state == State.waiting
         attempts = status.attempts
@@ -491,11 +485,12 @@ def admin_list_filter(field):
     :returns: Django admin model queue list filter
 
     """
+
     class QueueFilter(admin.SimpleListFilter):
-        "Django admin ModelQueue list filter."
+        """Django admin ModelQueue list filter."""
+
         title = '%s queue status' % field
         parameter_name = '%s_queue' % field
-
 
         def lookups(self, request, model_admin):
             return (
@@ -505,7 +500,6 @@ def admin_list_filter(field):
                 (State.finished, 'Finished'),
                 (State.canceled, 'Canceled'),
             )
-
 
         def queryset(self, request, queryset):
             value = self.value()
