@@ -1,4 +1,5 @@
 import datetime as dt
+import doctest
 
 import pytz
 
@@ -49,3 +50,9 @@ def test_states():
     assert mq.Status.working(priority, 3) == 3201801020304567893
     assert mq.Status.finished(priority, 4) == 4201801020304567894
     assert mq.Status.canceled(priority, 5) == 5201801020304567895
+
+
+def test_doctest():
+    failed, attempted = doctest.testmod(mq)
+    assert failed == 0
+    assert attempted > 0
