@@ -405,7 +405,7 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
                         # ^-- Callable to process model.
                     )
                     if task is None:
-                        time.sleep(0.1)
+                        time.sleep(1)
                         # ^-- Bring your own parallelism/concurrency.
 
             def process(self, report):

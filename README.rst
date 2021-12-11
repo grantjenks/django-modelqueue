@@ -37,7 +37,7 @@ And in appname/management/commands/process_tasks.py::
                     # ^-- Callable to process model.
                 )
                 if task is None:
-                    time.sleep(0.1)
+                    time.sleep(1)
                     # ^-- Bring your own parallelism/concurrency.
 
         def process(self, report):
