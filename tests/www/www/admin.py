@@ -1,6 +1,6 @@
-import modelqueue
-
 from django.contrib import admin
+
+import modelqueue
 
 from .models import Task
 

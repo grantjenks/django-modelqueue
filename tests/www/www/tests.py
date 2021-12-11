@@ -4,11 +4,11 @@ import itertools
 import random
 import time
 
-import modelqueue as mq
 import pytest
-
 from django.contrib.auth.models import User
 from django.test import Client
+
+import modelqueue as mq
 
 from .models import Task
 

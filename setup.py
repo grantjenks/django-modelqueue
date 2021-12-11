@@ -1,9 +1,9 @@
 import io
 import pathlib
 import re
-import setuptools as st
 import sys
 
+import setuptools as st
 from setuptools.command.test import test as TestCommand
 
 
