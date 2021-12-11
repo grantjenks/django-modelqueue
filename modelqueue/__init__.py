@@ -19,11 +19,10 @@ The examples below assume the following in appname/models.py::
 """
 
 import datetime as dt
-import pytz
 
+import pytz
 from django.contrib import admin
-from django.db import models
-from django.db import transaction
+from django.db import models, transaction
 
 ONE_HOUR = dt.timedelta(hours=1)
 ZERO_SECS = dt.timedelta(seconds=0)
