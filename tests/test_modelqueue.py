@@ -1,8 +1,9 @@
 import datetime as dt
 import doctest
 
-import modelqueue as mq
 import pytz
+
+import modelqueue as mq
 
 
 def test_title():

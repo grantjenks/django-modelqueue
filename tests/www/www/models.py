@@ -1,5 +1,6 @@
-import modelqueue
 from django.db import models
+
+import modelqueue
 
 
 class Task(models.Model):
