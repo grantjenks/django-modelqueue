@@ -24,6 +24,7 @@ import datetime as dt
 import pytz
 from django.contrib import admin
 from django.db import models, transaction
+from django.db.models import F
 
 ONE_HOUR = dt.timedelta(hours=1)
 ZERO_SECS = dt.timedelta(seconds=0)
@@ -34,6 +35,31 @@ StatusField = models.BigIntegerField
 def now():
     """Return now datetime in UTC timezone."""
     return dt.datetime.now(pytz.utc)
+
+
+def datetime_to_int(datetime):
+    """Convert datetime to 17 digit integer with millisecond precision."""
+    template = (
+        '{year:04d}'
+        '{month:02d}'
+        '{day:02d}'
+        '{hour:02d}'
+        '{minute:02d}'
+        '{second:02d}'
+        '{millisecond:03d}'
+    )
+    priority = int(
+        template.format(
+            year=datetime.year,
+            month=datetime.month,
+            day=datetime.day,
+            hour=datetime.hour,
+            minute=datetime.minute,
+            second=datetime.second,
+            millisecond=int(datetime.microsecond / 1000.0),
+        )
+    )
+    return priority
 
 
 class State(int):
@@ -87,7 +113,7 @@ class Status(int):
 
     """
 
-    _state_offset = 1000000000000000000
+    state_offset = 1000000000000000000
     states = [
         State(1, 'created'),
         State(2, 'waiting'),
@@ -106,7 +132,7 @@ class Status(int):
         State(3, 'working')
 
         """
-        num = self // self._state_offset
+        num = self // self.state_offset
         return next(state for state in self.states if state == num)
 
     @property
@@ -175,7 +201,7 @@ class Status(int):
         """
         if isinstance(state, str):
             state = getattr(State, state)
-        return state * cls._state_offset
+        return state * cls.state_offset
 
     @classmethod
     def maximum(cls, state):
@@ -192,7 +218,7 @@ class Status(int):
         """
         if isinstance(state, str):
             state = getattr(State, state)
-        return (state + 1) * cls._state_offset - 1
+        return (state + 1) * cls.state_offset - 1
 
     @classmethod
     def tally(cls, queryset, field):
@@ -230,26 +256,7 @@ class Status(int):
             state = getattr(State, state)
 
         if isinstance(priority, dt.datetime):
-            template = (
-                '{year:04d}'
-                '{month:02d}'
-                '{day:02d}'
-                '{hour:02d}'
-                '{minute:02d}'
-                '{second:02d}'
-                '{millisecond:03d}'
-            )
-            priority = int(
-                template.format(
-                    year=priority.year,
-                    month=priority.month,
-                    day=priority.day,
-                    hour=priority.hour,
-                    minute=priority.minute,
-                    second=priority.second,
-                    millisecond=int(priority.microsecond / 1000.0),
-                )
-            )
+            priority = datetime_to_int(priority)
 
         result = '{state}{priority:017d}{attempts}'.format(
             state=int(state),
@@ -304,6 +311,9 @@ class Status(int):
                 tzinfo=pytz.utc,
             )
         return self.state, priority, self.attempts
+
+    def __str__(self):
+        return str(int(self))
 
     def __repr__(self):
         type_name = type(self).__name__
@@ -487,12 +497,70 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
     return worker
 
 
+def admin_actions(field):
+    """Return Django admin actions for `field` describing model queue.
+
+    Admin actions:
+
+    1. Change state to created, waiting, working, finished, or canceled.
+    2. Change priority to now.
+    3. Change attempts to zero.
+
+    For example in appname/admin.py::
+
+        class TaskAdmin(admin.ModelAdmin):
+            actions = [
+                *modelqueue.admin_actions('status'),
+                # ^-- Add actions to admin for status field.
+            ]
+
+    :param str field: field name
+    :returns: Django admin actions
+
+    """
+    def make_action(state):
+        @admin.action(description=f'Change {field} state to {state}')
+        def make_state(modeladmin, request, queryset):
+            offset = Status.state_offset
+            kwargs = {field: F(field) % offset + state * offset}
+            queryset.update(**kwargs)
+        make_state.__name__ = f'make_{field}_state_{state}'
+        return make_state
+
+    actions = []
+    actions.extend(map(make_action, Status.states))
+
+    @admin.action(description=f'Change {field} priority to now')
+    def make_priority_now(modeladmin, request, queryset):
+        offset = Status.state_offset
+        priority = datetime_to_int(now())
+        calculation = (
+            F(field) / offset * offset
+            + priority * 10
+            + F(field) % 10
+        )
+        kwargs = {field: calculation}
+        queryset.update(**kwargs)
+
+    make_priority_now.__name__ = f'make_{field}_priority_now'
+    actions.append(make_priority_now)
+
+    @admin.action(description=f'Change {field} attempts to zero')
+    def make_attempts_zero(modeladmin, request, queryset):
+        kwargs = {field: F(field) / 10 * 10}
+        queryset.update(**kwargs)
+
+    make_attempts_zero.__name__ = f'make_{field}_attempts_zero'
+    actions.append(make_attempts_zero)
+    return actions
+
+
 def admin_list_filter(field):
     """Return Django admin list filter for `field` describing model queue.
 
     For example in appname/admin.py::
 
-        class TaskAdmin(admin.TaskAdmin):
+        class TaskAdmin(admin.Modeldmin):
             list_filter = [
                 modelqueue.admin_list_filter('status'),
                 # ^-- Filter tasks in admin by queue state.
@@ -511,11 +579,11 @@ def admin_list_filter(field):
 
         def lookups(self, request, model_admin):
             return (
-                (State.created, 'Created'),
-                (State.waiting, 'Waiting'),
-                (State.working, 'Working'),
-                (State.finished, 'Finished'),
-                (State.canceled, 'Canceled'),
+                (State.created, 'Created (1)'),
+                (State.waiting, 'Waiting (2)'),
+                (State.working, 'Working (3)'),
+                (State.finished, 'Finished (4)'),
+                (State.canceled, 'Canceled (5)'),
             )
 
         def queryset(self, request, queryset):

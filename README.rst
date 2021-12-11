@@ -46,10 +46,16 @@ And in appname/management/commands/process_tasks.py::
 And in appname/admin.py::
 
     class TaskAdmin(admin.TaskAdmin):
+        actions = [*modelqueue.admin_actions('status')]
+        # ^-- Change task status in admin.
         list_filter = [
             modelqueue.admin_list_filter('status'),
             # ^-- Filter tasks in admin by queue state.
         ]
+
+        def get_changeform_initial_data(self, request):
+            # v-- Automatically fill in status field when adding a new task.
+            return {'status': modelqueue.Status.waiting()}
 
 `ModelQueue`_ is a hazardous project. It takes a bad idea and makes it easy and
 effective. You may come to regret using your database as a task queue but it

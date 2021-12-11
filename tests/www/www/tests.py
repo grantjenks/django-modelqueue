@@ -360,3 +360,78 @@ def test_admin_list_filter():
         url = '/admin/www/task/?status_queue={name}'.format(name=state.name)
         response = client.get(url)
         assert '{} tasks'.format(state * 2).encode() in response.content
+
+
+@pytest.mark.django_db
+def test_admin_add():
+    user = User.objects.create(username='alice', password='password')
+    user.is_superuser = True
+    user.is_staff = True
+    user.save()
+
+    client = Client()
+    client.force_login(user)
+
+    response = client.get('/admin/www/task/add/')
+    assert b'value="220' in response.content
+
+
+@pytest.mark.django_db
+def test_admin_action_state():
+    user = User.objects.create(username='alice', password='password')
+    user.is_superuser = True
+    user.is_staff = True
+    user.save()
+
+    client = Client()
+    client.force_login(user)
+
+    for state in mq.Status.states:
+        func = getattr(mq.Status, str(state))
+        task = Task(data=str(int(state)), status=func())
+        task.save()
+
+    for state in mq.Status.states:
+        action = f'make_status_state_{state}'
+        response = client.post('/admin/www/task/', {'action': action, '_selected_action': 1})
+        assert response.status_code == 302
+
+
+@pytest.mark.django_db
+def test_admin_action_priority():
+    user = User.objects.create(username='alice', password='password')
+    user.is_superuser = True
+    user.is_staff = True
+    user.save()
+
+    client = Client()
+    client.force_login(user)
+
+    for state in mq.Status.states:
+        func = getattr(mq.Status, str(state))
+        task = Task(data=str(int(state)), status=func())
+        task.save()
+
+    action = 'make_status_priority_now'
+    response = client.post('/admin/www/task/', {'action': action, '_selected_action': 1})
+    assert response.status_code == 302
+
+
+@pytest.mark.django_db
+def test_admin_action_attempts():
+    user = User.objects.create(username='alice', password='password')
+    user.is_superuser = True
+    user.is_staff = True
+    user.save()
+
+    client = Client()
+    client.force_login(user)
+
+    for state in mq.Status.states:
+        func = getattr(mq.Status, str(state))
+        task = Task(data=str(int(state)), status=func())
+        task.save()
+
+    action = 'make_status_attempts_zero'
+    response = client.post('/admin/www/task/', {'action': action, '_selected_action': 1})
+    assert response.status_code == 302
