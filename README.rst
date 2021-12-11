@@ -79,11 +79,10 @@ Features
 - Performance matters
 - 100% test coverage
 - Hours of stress testing
-- Developed on Python 3.6
-- Tested on Django 1.11
-- Tested on CPython 2.7, 3.4, 3.5, 3.6, PyPy and PyPy3
+- Developed on Python 3.10
+- Tested on Django 3.2
+- Tested on CPython 3.6, 3.7, 3.8, 3.9, 3.10
 - Tested on Linux, Mac OS X, and Windows
-- Tested using Travis CI and AppVeyor CI
 
 .. image:: https://api.travis-ci.org/grantjenks/django-modelqueue.svg?branch=master
     :target: http://www.grantjenks.com/docs/modelqueue/
@@ -131,7 +130,7 @@ Reference and Indices
 ModelQueue License
 ------------------
 
-Copyright 2018 Grant Jenks
+Copyright 2022 Grant Jenks
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
