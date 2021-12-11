@@ -518,12 +518,14 @@ def admin_actions(field):
     :returns: Django admin actions
 
     """
+
     def make_action(state):
         @admin.action(description=f'Change {field} state to {state}')
         def make_state(modeladmin, request, queryset):
             offset = Status.state_offset
             kwargs = {field: F(field) % offset + state * offset}
             queryset.update(**kwargs)
+
         make_state.__name__ = f'make_{field}_state_{state}'
         return make_state
 
@@ -535,9 +537,7 @@ def admin_actions(field):
         offset = Status.state_offset
         priority = datetime_to_int(now())
         calculation = (
-            F(field) / offset * offset
-            + priority * 10
-            + F(field) % 10
+            F(field) / offset * offset + priority * 10 + F(field) % 10
         )
         kwargs = {field: calculation}
         queryset.update(**kwargs)

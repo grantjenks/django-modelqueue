@@ -393,7 +393,8 @@ def test_admin_action_state():
 
     for state in mq.Status.states:
         action = f'make_status_state_{state}'
-        response = client.post('/admin/www/task/', {'action': action, '_selected_action': 1})
+        args = {'action': action, '_selected_action': 1}
+        response = client.post('/admin/www/task/', args)
         assert response.status_code == 302
 
 
@@ -413,7 +414,8 @@ def test_admin_action_priority():
         task.save()
 
     action = 'make_status_priority_now'
-    response = client.post('/admin/www/task/', {'action': action, '_selected_action': 1})
+    args = {'action': action, '_selected_action': 1}
+    response = client.post('/admin/www/task/', args)
     assert response.status_code == 302
 
 
@@ -433,5 +435,6 @@ def test_admin_action_attempts():
         task.save()
 
     action = 'make_status_attempts_zero'
-    response = client.post('/admin/www/task/', {'action': action, '_selected_action': 1})
+    args = {'action': action, '_selected_action': 1}
+    response = client.post('/admin/www/task/', args)
     assert response.status_code == 302
