@@ -522,6 +522,7 @@ def admin_actions(field):
     def make_action(state):
         @admin.action(description=f'Change {field} state to {state}')
         def make_state(modeladmin, request, queryset):
+            # pylint: disable=unused-argument
             offset = Status.state_offset
             kwargs = {field: F(field) % offset + state * offset}
             queryset.update(**kwargs)
@@ -534,6 +535,7 @@ def admin_actions(field):
 
     @admin.action(description=f'Change {field} priority to now')
     def make_priority_now(modeladmin, request, queryset):
+        # pylint: disable=unused-argument
         offset = Status.state_offset
         priority = datetime_to_int(now())
         calculation = (
@@ -547,6 +549,7 @@ def admin_actions(field):
 
     @admin.action(description=f'Change {field} attempts to zero')
     def make_attempts_zero(modeladmin, request, queryset):
+        # pylint: disable=unused-argument
         kwargs = {field: F(field) / 10 * 10}
         queryset.update(**kwargs)
 
