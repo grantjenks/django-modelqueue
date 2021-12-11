@@ -337,7 +337,13 @@ for _state in Status.states:
 class Retry(Exception):
     """Retry processing the task.
 
+    When raised in an `action` callable from :func:`modelqueue.run`, the
+    exception is used to signal that the task should be retried.
+
     Retry does *not* increment the attempt count of the task.
+
+    Optional `delay` parameter can be used to override the `delay` given in
+    :func:`modelqueue.run`.
 
     """
 
@@ -349,8 +355,14 @@ class Retry(Exception):
 class Abort(Exception):
     """Abort processing the task.
 
+    When raised in an `action` callable from :func:`modelqueue.run`, the
+    exception is used to signal that the task was aborted.
+
     Abort *does* increment the attempt count of the task. If the attempts limit
     is reached then the task will be canceled.
+
+    Optional `delay` parameter can be used to override the `delay` given in
+    :func:`modelqueue.run`.
 
     """
 
@@ -361,6 +373,9 @@ class Abort(Exception):
 
 class Cancel(Exception):
     """Cancel processing the task.
+
+    When raised in an `action` callable from :func:`modelqueue.run`, the
+    exception is used to signal that the task should be canceled.
 
     Cancel both increments the attempt count and changes the task state to
     canceled.
