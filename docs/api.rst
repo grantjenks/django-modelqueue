@@ -1,5 +1,6 @@
 .. automodule:: modelqueue
 
+
 Functions
 ---------
 
@@ -9,6 +10,7 @@ Functions
 
 .. autofunction:: modelqueue.now
 
+
 Exceptions
 ----------
 
@@ -17,6 +19,7 @@ Exceptions
 .. autoclass:: modelqueue.Abort
 
 .. autoclass:: modelqueue.Cancel
+
 
 State
 -----
@@ -29,6 +32,7 @@ State
    .. autoattribute:: finished
    .. autoattribute:: canceled
 
+
 Status
 ------
 
@@ -37,10 +41,12 @@ Status
 
    .. autoattribute:: states
 
+
 StatusField
 -----------
 
 .. autoclass:: modelqueue.StatusField
+
 
 Constants
 ---------
