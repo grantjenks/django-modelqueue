@@ -418,7 +418,7 @@ def run(queryset, field, action, retry=3, timeout=ONE_HOUR, delay=ZERO_SECS):
                         time.sleep(1)
                         # ^-- Bring your own parallelism/concurrency.
 
-            def process(self, report):
+            def process(self, task):
                 pass  # Process task models.
 
     :param queryset: Django queryset
