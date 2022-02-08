@@ -40,12 +40,12 @@ And in appname/management/commands/process_tasks.py::
                     time.sleep(1)
                     # ^-- Bring your own parallelism/concurrency.
 
-        def process(self, report):
+        def process(self, task):
             pass  # Process task models.
 
 And in appname/admin.py::
 
-    class TaskAdmin(admin.TaskAdmin):
+    class TaskAdmin(admin.ModelAdmin):
         actions = [*modelqueue.admin_actions('status')]
         # ^-- Change task status in admin.
         list_filter = [
