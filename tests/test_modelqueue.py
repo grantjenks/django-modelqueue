@@ -56,3 +56,8 @@ def test_doctest():
     failed, attempted = doctest.testmod(mq)
     assert failed == 0
     assert attempted > 0
+
+
+def test_str():
+    status = mq.Status.finished()
+    assert str(status) == 'finished; now; 0 attempts'
