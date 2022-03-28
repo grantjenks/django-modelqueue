@@ -55,7 +55,7 @@ And in appname/admin.py::
 
         def get_changeform_initial_data(self, request):
             # v-- Automatically fill in status field when adding a new task.
-            return {'status': modelqueue.Status.waiting()}
+            return {'status': int(modelqueue.Status.waiting())}
 
 `ModelQueue`_ is a hazardous project. It takes a bad idea and makes it easy and
 effective. You may come to regret using your database as a task queue but it

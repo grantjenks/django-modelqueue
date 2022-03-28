@@ -13,4 +13,4 @@ class TaskAdmin(admin.ModelAdmin):
     ]
 
     def get_changeform_initial_data(self, request):
-        return {'status': modelqueue.Status.waiting()}
+        return {'status': int(modelqueue.Status.waiting())}
