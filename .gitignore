@@ -17,3 +17,5 @@
 
 # macOS metadata
 .DS_Store
+
+db.sqlite3*
