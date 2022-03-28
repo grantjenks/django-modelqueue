@@ -23,6 +23,7 @@ import datetime as dt
 
 import pytz
 from django.contrib import admin
+from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.db import models, transaction
 from django.db.models import F
 
@@ -313,7 +314,8 @@ class Status(int):
         return self.state, priority, self.attempts
 
     def __str__(self):
-        return str(int(self))
+        state, when, attempts = self.parse()
+        return f'{state.name}; {naturaltime(when)}; {attempts} attempts'
 
     def __repr__(self):
         type_name = type(self).__name__
