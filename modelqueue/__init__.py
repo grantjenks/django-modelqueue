@@ -582,11 +582,11 @@ def admin_list_filter(field):
 
         def lookups(self, request, model_admin):
             return (
-                (State.created, 'Created (1)'),
-                (State.waiting, 'Waiting (2)'),
-                (State.working, 'Working (3)'),
-                (State.finished, 'Finished (4)'),
-                (State.canceled, 'Canceled (5)'),
+                (State.created, 'Created'),
+                (State.waiting, 'Waiting'),
+                (State.working, 'Working'),
+                (State.finished, 'Finished'),
+                (State.canceled, 'Canceled'),
             )
 
         def queryset(self, request, queryset):
