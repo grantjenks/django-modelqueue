@@ -315,7 +315,11 @@ class Status(int):
 
     def __str__(self):
         state, when, attempts = self.parse()
-        return f'{state.name}; {naturaltime(when)}; {attempts} attempts'
+        try:
+            when = naturaltime(when)
+        except ValueError:
+            when = '%s priority' % when
+        return f'{state.name}; {when}; {attempts} attempts'
 
     def __repr__(self):
         type_name = type(self).__name__
