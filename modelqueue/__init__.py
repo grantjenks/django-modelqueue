@@ -577,10 +577,14 @@ def admin_list_filter(field):
 
     """
 
+    display_name = field[:-6] if field.endswith('status') else field
+    display_name = field.replace('_', ' ').strip()
+    filter_title = ('%s queue status' % display_name).strip()
+
     class QueueFilter(admin.SimpleListFilter):
         """Django admin ModelQueue list filter."""
 
-        title = '%s queue status' % field
+        title = filter_title
         parameter_name = '%s_queue' % field
 
         def lookups(self, request, model_admin):
