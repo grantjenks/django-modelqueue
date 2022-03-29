@@ -20,12 +20,14 @@ The examples below assume the following in appname/models.py::
 """
 
 import datetime as dt
+from contextlib import suppress
 
 import pytz
 from django.contrib import admin
 from django.contrib.humanize.templatetags.humanize import naturaltime
 from django.db import models, transaction
-from django.db.models import F
+from django.db.models import F, IntegerField
+from django.db.models.functions import Floor
 
 ONE_HOUR = dt.timedelta(hours=1)
 ZERO_SECS = dt.timedelta(seconds=0)
@@ -267,7 +269,7 @@ class Status(int):
         assert len(result) == 19
         return Status(result)
 
-    def parse(self, datetime=True):
+    def parse(self):
         """Parse status into state, priority, and attempts fields.
 
         If `datetime` is True (the default), then parse priority into datetime
@@ -294,30 +296,30 @@ class Status(int):
         >>> attempts
         5
         >>> status = Status(3000000000000000007)
-        >>> status.parse(datetime=False)
+        >>> status.parse()
         (State(3, 'working'), 0, 7)
 
         """
         priority = self.priority
-        if datetime:
-            priority = str(priority)
+        timestamp = str(priority)
+        with suppress(ValueError):
             priority = dt.datetime(
-                year=int(priority[0:4]),
-                month=int(priority[4:6]),
-                day=int(priority[6:8]),
-                hour=int(priority[8:10]),
-                minute=int(priority[10:12]),
-                second=int(priority[12:14]),
-                microsecond=int(priority[14:17]) * 1000,
+                year=int(timestamp[0:4]),
+                month=int(timestamp[4:6]),
+                day=int(timestamp[6:8]),
+                hour=int(timestamp[8:10]),
+                minute=int(timestamp[10:12]),
+                second=int(timestamp[12:14]),
+                microsecond=int(timestamp[14:17]) * 1000,
                 tzinfo=pytz.utc,
             )
         return self.state, priority, self.attempts
 
     def __str__(self):
         state, when, attempts = self.parse()
-        try:
+        if isinstance(when, dt.datetime):
             when = naturaltime(when)
-        except ValueError:
+        else:
             when = '%s priority' % when
         return f'{state.name}; {when}; {attempts} attempts'
 
