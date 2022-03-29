@@ -520,9 +520,10 @@ def admin_actions(field):
     :returns: Django admin actions
 
     """
+    display_name = field.replace('_', ' ')
 
     def make_action(state):
-        @admin.action(description=f'Change {field} state to {state}')
+        @admin.action(description=f'Change {display_name} state to {state}')
         def make_state(modeladmin, request, queryset):
             # pylint: disable=unused-argument
             offset = Status.state_offset
@@ -535,7 +536,7 @@ def admin_actions(field):
     actions = []
     actions.extend(map(make_action, Status.states))
 
-    @admin.action(description=f'Change {field} priority to now')
+    @admin.action(description=f'Change {display_name} priority to now')
     def make_priority_now(modeladmin, request, queryset):
         # pylint: disable=unused-argument
         offset = Status.state_offset
@@ -549,7 +550,7 @@ def admin_actions(field):
     make_priority_now.__name__ = f'make_{field}_priority_now'
     actions.append(make_priority_now)
 
-    @admin.action(description=f'Change {field} attempts to zero')
+    @admin.action(description=f'Change {display_name} attempts to zero')
     def make_attempts_zero(modeladmin, request, queryset):
         # pylint: disable=unused-argument
         kwargs = {field: F(field) / 10 * 10}
