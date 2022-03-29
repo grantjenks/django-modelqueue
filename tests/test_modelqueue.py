@@ -61,3 +61,8 @@ def test_doctest():
 def test_str():
     status = mq.Status.finished()
     assert str(status) == 'finished; now; 0 attempts'
+
+
+def test_priority_zero():
+    status = mq.Status.waiting(0)
+    assert str(status) == 'waiting; 0 priority; 0 attempts'
