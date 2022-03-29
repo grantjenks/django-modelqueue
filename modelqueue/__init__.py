@@ -546,7 +546,7 @@ def admin_actions(field):
         offset = Status.state_offset
         priority = datetime_to_int(now())
         calculation = (
-            F(field) / offset * offset + priority * 10 + F(field) % 10
+            F(field) // offset * offset + priority * 10 + F(field) % 10
         )
         kwargs = {field: calculation}
         queryset.update(**kwargs)
@@ -557,7 +557,7 @@ def admin_actions(field):
     @admin.action(description=f'Change {display_name} attempts to zero')
     def make_attempts_zero(modeladmin, request, queryset):
         # pylint: disable=unused-argument
-        kwargs = {field: F(field) / 10 * 10}
+        kwargs = {field: F(field) // 10 * 10}
         queryset.update(**kwargs)
 
     make_attempts_zero.__name__ = f'make_{field}_attempts_zero'
