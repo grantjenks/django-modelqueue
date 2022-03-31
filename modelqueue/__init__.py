@@ -588,7 +588,7 @@ def admin_list_filter(field):
     """
 
     display_name = field[:-6] if field.endswith('status') else field
-    display_name = field.replace('_', ' ').strip()
+    display_name = display_name.replace('_', ' ').strip()
     filter_title = ('%s queue status' % display_name).strip()
 
     class QueueFilter(admin.SimpleListFilter):
